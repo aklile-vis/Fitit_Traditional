@@ -1,0 +1,140 @@
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleFloorPlanClick()
+                          }}
+                          className="btn btn-primary text-sm"
+                        >
+                          Open
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+          </div>
+
+          {/* Right Column - Contact Card (Sticky) */}
+          <aside className="space-y-6">
+            <div className="sticky top-20 space-y-6">
+              {/* Contact/Inquiry Card */}
+              <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-4 shadow-lg sm:p-6">
+                <h3 className="text-lg font-semibold text-primary mb-4 sm:text-xl">Interested in this property?</h3>
+                <div className="space-y-4">
+                  <button className="btn btn-primary w-full justify-center text-base">
+                    Schedule a Viewing
+                  </button>
+                  <button className="btn btn-secondary w-full justify-center text-base">
+                    Contact Agent
+                  </button>
+                  <button className="btn btn-outline w-full justify-center text-base">
+                    Request Info
+                  </button>
+                </div>
+                
+                <div className="mt-6 pt-6 border-t border-[color:var(--surface-border)] space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted">Property ID</span>
+                    <span className="font-medium text-primary">EST-{Math.floor(Math.random() * 100000)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted">Listed</span>
+                    <span className="font-medium text-primary">Just now</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted">Status</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Available
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              {/* 3D Virtual Tour Card */}
+              {immersive.has3D && (
+                <section className="rounded-2xl border-2 border-[color:var(--accent-500)] bg-gradient-to-br from-[color:var(--accent-500)]/5 to-transparent p-4 sm:p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent-500)]">
+                      <svg className="h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-primary">3D Virtual Tour</h3>
+                      <p className="text-xs text-muted">Explore in 3D</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-secondary mb-4">
+                    Experience this property in immersive 3D. Walk through every room from the comfort of your home.
+                  </p>
+                  {immersive.viewerLink && (
+                    <button className="btn btn-primary w-full justify-center">
+                      Launch 3D Tour
+                    </button>
+                  )}
+                </section>
+              )}
+
+              {/* Quick Stats */}
+              <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-4 sm:p-6">
+                <h3 className="font-semibold text-primary mb-4">Property Stats</h3>
+                <dl className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Total Media</dt>
+                    <dd className="font-medium text-primary">{media.images.length + media.videos.length} files</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Type</dt>
+                    <dd className="font-medium text-primary">{propertyType}</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Location</dt>
+                    <dd className="font-medium text-primary">{city}</dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      {/* Media viewer modal (minimal, with arrows) */}
+      {viewer && (() => {
+        let list, current, src
+        
+        if (viewer.isFloorPlan) {
+          // Handle floor plan images and PDFs
+          list = media.floorPlans
+          current = media.floorPlans[viewer.index]
+          src = current ? toAbsolute(current.url) : ''
+        } else {
+          // Handle regular images and videos
+          list = viewer.type === 'image' ? media.images : media.videos
+          current = list[viewer.index]
+          src = viewer.type === 'image' ? toAbsolute(current as string) : toAbsolute((current as {url:string}).url)
+        }
+
+        const isPdf = current && (
+          (typeof current === 'string' && current.includes('.pdf')) ||
+          (typeof current === 'object' && current.url && current.url.includes('.pdf'))
+        )
+
+        return (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+            role="dialog"
+            aria-modal="true"
+            onClick={closeViewer}
+          >
+            <div
+              className="relative max-h-[90vh] w-full max-w-6xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {isPdf ? (
+                // PDF viewer with fallback
+                <div className="w-full h-full">

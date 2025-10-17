@@ -1,0 +1,30 @@
+{
+  "slug": "modern_living",
+  "name": "Modern Living Room",
+  "description": "Neutral walls, oak floors, curated modern seating.",
+  "materials": [
+    {
+      "target": "floor",
+      "material": "default_oak_floor",
+      "priority": 0
+    },
+    {
+      "target": "wall",
+      "material": "matte_white_paint",
+      "priority": 0
+    }
+  ],
+  "fixtures": [
+    {
+      "asset": "sofa_modern_01",
+      "placement": {
+        "position": [0.0, 0.0, 0.0],
+        "rotation": 180,
+        "scale": [1, 1, 1]
+      }
+    }
+  ],
+  "metadata": {
+    "tags": ["living", "default"]
+  }
+}

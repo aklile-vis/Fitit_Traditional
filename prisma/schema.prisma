@@ -1,0 +1,479 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+  engineType    = "binary"
+}
+
+datasource db {
+  provider = "sqlite" // Switch to "postgresql" when deploying to Postgres
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  profile           UserProfile?
+  properties        Property[]
+  projects          Project[]
+  uploads           FileUpload[]
+  materialLibraries MaterialLibrary[]
+  exportLogs        ExportLog[]
+  Media             Media[]
+  savedListings     SavedListing[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  id         String  @id @default(cuid())
+  userId     String  @unique
+  user       User    @relation(fields: [userId], references: [id])
+  // Optional agent-facing fields
+  phone      String?
+  jobTitle   String?
+  agencyName String?
+  avatarUrl  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("user_profiles")
+}
+
+model Property {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  address     String
+  price       Float
+  bedrooms    Int
+  bathrooms   Int
+  squareFeet  Int?
+  images      String // JSON string of image URLs
+  modelPath   String? // Path to 3D model file
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  userId   String
+  user     User      @relation(fields: [userId], references: [id])
+  projects Project[]
+
+  category PropertyCategory @default(RESIDENTIAL)
+  media    Media[]
+
+  @@map("properties")
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(PROCESSING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  userId     String
+  user       User         @relation(fields: [userId], references: [id])
+  propertyId String?
+  property   Property?    @relation(fields: [propertyId], references: [id])
+  files      FileUpload[]
+
+  @@map("projects")
+}
+
+model FileUpload {
+  id           String     @id @default(cuid())
+  filename     String
+  originalName String
+  filePath     String
+  fileSize     Int
+  mimeType     String
+  status       FileStatus @default(UPLOADED)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relations
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  // Processing results
+  processedFilePath String?
+  ifcFilePath       String?
+  glbFilePath       String?
+  usdFilePath       String?
+  errorMessage      String?
+
+  // Relations to units
+  units PropertyUnit[]
+
+  @@map("file_uploads")
+}
+
+// Materials & Pricing
+
+model MaterialLibrary {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String? // agent user id (optional for now)
+  owner     User?    @relation(fields: [ownerId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  options MaterialOption[]
+
+  @@map("material_libraries")
+}
+
+model MaterialOption {
+  id              String          @id @default(cuid())
+  name            String
+  category        String // e.g., wall, floor, ceiling, door, window
+  unit            String // e.g., m2, unit, m
+  price           Float // base price per unit
+  description     String?
+  baseColorHex    String? // simple PBR begin; textures later
+  roughness       Float?          @default(0.8)
+  // PBR texture set (optional)
+  albedoUrl       String?
+  normalUrl       String?
+  roughnessMapUrl String?
+  metallicMapUrl  String?
+  aoMapUrl        String?
+  tilingScale     Float?          @default(1.0)
+  metallic        Float?          @default(0)
+  libraryId       String
+  library         MaterialLibrary @relation(fields: [libraryId], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  whitelists UnitMaterialWhitelist[]
+
+  @@map("material_options")
+}
+
+model PropertyUnit {
+  id           String      @id @default(cuid())
+  name         String
+  fileUploadId String? // link to uploaded source
+  fileUpload   FileUpload? @relation(fields: [fileUploadId], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  whitelists UnitMaterialWhitelist[]
+  selections BuyerSelection[]
+  listing    UnitListing?
+  exportLogs ExportLog[]
+
+  // Editor state and artifacts
+  editorState     Json?
+  editorStatePath String?
+  media           Media[]
+
+  @@map("property_units")
+}
+
+model BuyerSelection {
+  id              String       @id @default(cuid())
+  unitId          String
+  unit            PropertyUnit @relation(fields: [unitId], references: [id])
+  userId          String?
+  selections      Json
+  priceTotal      Float        @default(0)
+  basePrice       Float        @default(0)
+  addonTotal      Float        @default(0)
+  lineItems       Json?
+  clientPrice     Float?
+  priceDifference Float?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@map("buyer_selections")
+}
+
+model UnitListing {
+  id          String       @id @default(cuid())
+  unitId      String       @unique
+  unit        PropertyUnit @relation(fields: [unitId], references: [id])
+  title       String
+  description String?
+  address     String?
+  city        String?
+  subCity     String?
+  bedrooms    Int?         @default(0)
+  bathrooms   Int?         @default(0)
+  areaSqm     Float?       @default(0)
+  basePrice   Float        @default(0)
+  currency    String       @default("ETB")
+  coverImage  String?
+  has3D       Boolean      @default(false)
+  isPublished Boolean      @default(false)
+  amenities   String?      // JSON string of amenities array
+  features    String?      // JSON string of features array
+  floorPlans  String?      // JSON string of floor plans array
+  propertyType String?     // Property type (e.g., "Apartment", "Villa", "Office")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  savedBy     SavedListing[]
+
+  @@map("unit_listings")
+}
+
+model SavedListing {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  listingId String
+  listing   UnitListing @relation(fields: [listingId], references: [id])
+  createdAt DateTime    @default(now())
+
+  @@unique([userId, listingId])
+  @@map("saved_listings")
+}
+
+model UnitMaterialWhitelist {
+  id            String         @id @default(cuid())
+  unitId        String
+  unit          PropertyUnit   @relation(fields: [unitId], references: [id])
+  optionId      String
+  option        MaterialOption @relation(fields: [optionId], references: [id])
+  overridePrice Float?
+  buyerReady    Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([unitId, optionId])
+  @@map("unit_material_whitelist")
+}
+
+model ExportLog {
+  id            String       @id @default(cuid())
+  unitId        String
+  unit          PropertyUnit @relation(fields: [unitId], references: [id])
+  userId        String?
+  user          User?        @relation(fields: [userId], references: [id])
+  artifactCount Int          @default(0)
+  metadata      Json?
+  createdAt     DateTime     @default(now())
+
+  @@map("export_logs")
+}
+
+// -----------------------------------------------------------------------------
+// Asset & Material Catalog (Phase 2)
+
+model AssetCategory {
+  id          String          @id @default(cuid())
+  slug        String          @unique
+  name        String
+  description String?
+  parentId    String?
+  parent      AssetCategory?  @relation("AssetCategoryHierarchy", fields: [parentId], references: [id])
+  children    AssetCategory[] @relation("AssetCategoryHierarchy")
+  assets      Asset[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("asset_categories")
+}
+
+model Asset {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  name        String
+  description String?
+  categoryId  String
+  category    AssetCategory  @relation(fields: [categoryId], references: [id])
+  previewUrl  String?
+  metadata    Json?
+  variants    AssetVariant[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("assets")
+}
+
+model AssetVariant {
+  id             String                 @id @default(cuid())
+  assetId        String
+  asset          Asset                  @relation(fields: [assetId], references: [id])
+  name           String
+  sku            String?
+  lodLevel       String?
+  modelPath      String?
+  thumbnailUrl   String?
+  metadata       Json?
+  materials      AssetVariantMaterial[]
+  roomPlacements RoomStylePresetAsset[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@map("asset_variants")
+}
+
+model MaterialProfile {
+  id               String                    @id @default(cuid())
+  slug             String                    @unique
+  name             String
+  description      String?
+  materialType     String?
+  albedoPath       String?
+  normalPath       String?
+  roughnessPath    String?
+  metallicPath     String?
+  aoPath           String?
+  displacementPath String?
+  metadata         Json?
+  assets           AssetVariantMaterial[]
+  roomUsages       RoomStylePresetMaterial[]
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  @@map("material_profiles")
+}
+
+model AssetVariantMaterial {
+  id                String          @id @default(cuid())
+  assetVariantId    String
+  assetVariant      AssetVariant    @relation(fields: [assetVariantId], references: [id])
+  materialProfileId String
+  materialProfile   MaterialProfile @relation(fields: [materialProfileId], references: [id])
+  usage             String?
+  uvScale           Float?
+  metadata          Json?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([assetVariantId, materialProfileId, usage])
+  @@map("asset_variant_materials")
+}
+
+model RoomStylePreset {
+  id          String                    @id @default(cuid())
+  slug        String                    @unique
+  name        String
+  description String?
+  roomType    String?
+  metadata    Json?
+  materials   RoomStylePresetMaterial[]
+  assets      RoomStylePresetAsset[]
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+
+  @@map("room_style_presets")
+}
+
+model RoomStylePresetMaterial {
+  id                String          @id @default(cuid())
+  presetId          String
+  preset            RoomStylePreset @relation(fields: [presetId], references: [id])
+  materialProfileId String
+  materialProfile   MaterialProfile @relation(fields: [materialProfileId], references: [id])
+  targetCategory    String
+  priority          Int?            @default(0)
+  metadata          Json?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([presetId, targetCategory])
+  @@map("room_style_preset_materials")
+}
+
+model RoomStylePresetAsset {
+  id             String          @id @default(cuid())
+  presetId       String
+  preset         RoomStylePreset @relation(fields: [presetId], references: [id])
+  assetVariantId String
+  assetVariant   AssetVariant    @relation(fields: [assetVariantId], references: [id])
+  placement      Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@map("room_style_preset_assets")
+}
+
+enum Role {
+  USER
+  AGENT
+  ADMIN
+}
+
+enum ProjectStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum FileStatus {
+  UPLOADED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum PropertyCategory {
+  RESIDENTIAL
+  COMMERCIAL
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+  MODEL
+  OTHER
+}
+
+enum MediaRole {
+  COVER
+  GALLERY
+  FLOORPLAN
+  VIRTUAL_TOUR
+  DOCUMENT
+  OTHER
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Classification
+  type      MediaType
+  role      MediaRole?
+  sortOrder Int        @default(0)
+
+  // Storage & presentation (direct URL)
+  url      String
+  mimeType String?
+  fileSize Int?
+  altText  String?
+  caption  String?
+
+  // Scope (exactly one is usually set)
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId String?
+
+  unit   PropertyUnit? @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unitId String?
+
+  // Attribution (optional)
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedById String?
+
+  @@index([propertyId, type, role, sortOrder])
+  @@index([unitId, type, role, sortOrder])
+}

@@ -1,0 +1,35 @@
+{
+  "slug": "bed_platform_block",
+  "name": "Platform Bed (Placeholder)",
+  "description": "Queen-size bed proxy for catalog demos.",
+  "modelPath": "./model.glb",
+  "thumbnail": "./preview.png",
+  "metadata": {
+    "defaultRoom": "bedroom",
+    "tags": [
+      "bedroom",
+      "sleep"
+    ],
+    "placement": {
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "size": [
+      2.0,
+      1.6,
+      0.6
+    ]
+  },
+  "source": {
+    "type": "synthetic_demo"
+  }
+}

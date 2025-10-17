@@ -1,0 +1,300 @@
+"use client"
+
+import { useEffect, useState, useRef } from "react"
+import Link from 'next/link'
+
+import {
+  MapPinIcon,
+  PhotoIcon,
+  PlayCircleIcon,
+  TagIcon,
+  CubeTransparentIcon,
+  ArrowsPointingOutIcon,
+} from "@heroicons/react/24/outline"
+import { XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid'
+
+// Inline icons for property specs (match listings page)
+const BedIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <path d="M3 10v8M21 18V12a3 3 0 00-3-3H8a3 3 0 00-3 3" />
+    <path d="M3 14h18" />
+  </svg>
+)
+
+const BathIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+    <path d="M7 10V8a2 2 0 114 0v2" />
+    <path d="M4 13h16v2a3 3 0 01-3 3H7a3 3 0 01-3-3v-2z" />
+    <path d="M7 18v2M17 18v2" />
+  </svg>
+)
+
+const AreaIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <ArrowsPointingOutIcon {...props} />
+)
+
+export type ListingUnitPayload = {
+  listing: any
+  unit: any
+}
+
+export type ListingReviewShape = {
+  title: string
+  subtitle: string
+  status: string
+  pricing: { basePrice: string; currency: string }
+  propertyType: string
+  location: string
+  address: string
+  city: string
+  subCity: string
+  specs: { bedrooms: number; bathrooms: number; areaSqm: number }
+  description: string
+  amenities: string[]
+  features: string[]
+  media: {
+    images: string[]
+    videos: { url: string; label: string }[]
+    floorPlans: { url: string; name: string }[]
+    coverImage: string
+  }
+  immersive: {
+    has3D: boolean
+    glbPath?: string
+    viewerLink?: string
+    processedAt?: string
+  }
+}
+
+export default function TraditionalViewer({ listing }: { listing?: ListingUnitPayload | null }) {
+  const [heroIndex, setHeroIndex] = useState(0)
+  const [viewer, setViewer] = useState<{ type: 'image' | 'video'; index: number; isFloorPlan?: boolean } | null>(null)
+  const initialCoverSet = useRef(false)
+
+  // Show loading state if no data is available yet
+  if (!listing) {
+    return (
+      <div className="min-h-screen bg-[color:var(--app-background)] text-primary flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--accent-500)] mx-auto"></div>
+          <p className="text-lg text-secondary">Loading property details...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Use real data if available, otherwise show no data message
+  const realData = listing?.listing
+  const realUnit = listing?.unit
+  
+  if (!realData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-4">No Listing Data</h1>
+          <p className="text-gray-600 mb-6">This listing is not available or has been removed.</p>
+          <Link href="/listings" className="btn btn-primary">
+            Browse Other Listings
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  const data = {
+    title: realData.title || 'Property Listing',
+    subtitle: realData.description || 'Beautiful property for sale',
+    pricing: { 
+      basePrice: realData.basePrice?.toString() || '0', 
+      currency: realData.currency || 'ETB' 
+    },
+    propertyType: realData.propertyType || 'Property',
+    address: realData.address || 'Address not specified',
+    city: realData.city || '',
+    subCity: realData.subCity || '',
+    specs: {
+      bedrooms: realData.bedrooms || 0,
+      bathrooms: realData.bathrooms || 0,
+      areaSqm: realData.areaSqm || 0
+    },
+    description: realData.description || 'No description available',
+    amenities: realData.amenities ? (() => {
+      try { return JSON.parse(realData.amenities) } 
+      catch { return [] }
+    })() : [],
+    features: realData.features ? (() => {
+      try { return JSON.parse(realData.features) } 
+      catch { return [] }
+    })() : [],
+    media: {
+      images: [
+        ...(realData.coverImage ? [realData.coverImage] : []),
+        // Handle fileUpload.images as both array and JSON string
+        ...(Array.isArray(realUnit?.fileUpload?.images) ? realUnit.fileUpload.images : []),
+        ...(typeof realUnit?.fileUpload?.images === 'string' ? (() => {
+          try { return JSON.parse(realUnit.fileUpload.images || '[]') } 
+          catch { return [] }
+        })() : []),
+        // Handle all image media types
+        ...(realUnit?.media?.filter((m: any) => m.type === 'IMAGE').map((m: any) => m.url) || [])
+      ].filter((url, index, arr) => arr.indexOf(url) === index), // Remove duplicates
+      videos: [
+        // Handle fileUpload.videos as both array and JSON string
+        ...(Array.isArray(realUnit?.fileUpload?.videos) ? realUnit.fileUpload.videos : []),
+        ...(typeof realUnit?.fileUpload?.videos === 'string' ? (() => {
+          try { return JSON.parse(realUnit.fileUpload.videos || '[]') } 
+          catch { return [] }
+        })() : []),
+        ...(realUnit?.media?.filter((m: any) => m.type === 'VIDEO').map((m: any) => ({ url: m.url, label: m.caption || 'Video Tour' })) || [])
+      ],
+      floorPlans: [
+        ...(realData.floorPlans ? (() => {
+          try { return JSON.parse(realData.floorPlans) } 
+          catch { return [] }
+        })() : []),
+        // Handle fileUpload.floorPlans as both array and JSON string
+        ...(Array.isArray(realUnit?.fileUpload?.floorPlans) ? realUnit.fileUpload.floorPlans : []),
+        ...(typeof realUnit?.fileUpload?.floorPlans === 'string' ? (() => {
+          try { return JSON.parse(realUnit.fileUpload.floorPlans || '[]') } 
+          catch { return [] }
+        })() : []),
+        ...(realUnit?.media?.filter((m: any) => m.type === 'DOCUMENT' && m.role === 'FLOORPLAN').map((m: any) => ({ url: m.url, name: m.caption || 'Floor Plan' })) || [])
+      ],
+      coverImage: realData.coverImage || ''
+    },
+    immersive: {
+      has3D: realData.has3D || false,
+      glbPath: realUnit?.fileUpload?.glbPath || '',
+      viewerLink: `/listings/${realData.id}`,
+      processedAt: realData.updatedAt?.toString() || ''
+    }
+  }
+
+  const { title, subtitle, pricing, propertyType, address, city, subCity, specs, description, amenities, features, media, immersive } = data
+
+  // Build absolute URLs for stored paths
+  const toAbsolute = (url: string) => (url?.startsWith('http') ? url : `/api/files/binary?path=${encodeURIComponent(url)}`)
+
+  // Combine images and videos for carousel
+  const allMedia = [
+    ...media.images.map((img, index) => ({ type: 'image' as const, url: img, index })),
+    ...media.videos.map((video, index) => ({ type: 'video' as const, url: video.url, index, label: video.label }))
+  ]
+
+  // Debug logging
+  console.log('Carousel Debug:', {
+    mediaImages: media.images,
+    mediaVideos: media.videos,
+    allMedia: allMedia,
+    allMediaLength: allMedia.length,
+    heroIndex: heroIndex,
+    currentHeroMedia: allMedia[heroIndex]
+  })
+
+  // Set hero index to cover image when media is available (only on initial load)
+  useEffect(() => {
+    if (media.coverImage && media.images.length > 0 && !initialCoverSet.current) {
+      const coverIndex = media.images.findIndex(img => img === media.coverImage)
+      if (coverIndex >= 0) {
+        setHeroIndex(coverIndex)
+        initialCoverSet.current = true
+      }
+    }
+  }, [media.coverImage, media.images])
+
+  // Carousel navigation functions
+  const nextHeroMedia = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    console.log('nextHeroMedia called', { currentIndex: heroIndex, allMediaLength: allMedia.length })
+    if (allMedia.length > 0) {
+      setHeroIndex((prev) => {
+        const newIndex = (prev + 1) % allMedia.length
+        console.log('Setting hero index to:', newIndex)
+        return newIndex
+      })
+    }
+  }
+
+  const prevHeroMedia = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    console.log('prevHeroMedia called', { currentIndex: heroIndex, allMediaLength: allMedia.length })
+    if (allMedia.length > 0) {
+      setHeroIndex((prev) => {
+        const newIndex = (prev - 1 + allMedia.length) % allMedia.length
+        console.log('Setting hero index to:', newIndex)
+        return newIndex
+      })
+    }
+  }
+
+  const openViewer = (type: 'image' | 'video', index: number, isFloorPlan = false) => {
+    setViewer({ type, index, isFloorPlan })
+  }
+
+  const closeViewer = () => {
+    setViewer(null)
+  }
+
+  const currentHeroMedia = allMedia[heroIndex]
+  const heroUrl = currentHeroMedia ? toAbsolute(currentHeroMedia.url) : 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1600&q=80'
+
+  return (
+    <div className="min-h-screen bg-[color:var(--app-background)] text-primary">
+      {/* Hero Media Carousel Section */}
+      <div className="group relative h-[400px] overflow-hidden bg-black cursor-pointer sm:h-[500px]" onClick={() => openViewer(currentHeroMedia?.type || 'image', currentHeroMedia?.index || 0)}>
+        {currentHeroMedia?.type === 'video' ? (
+          <video
+            src={heroUrl}
+            className="h-full w-full object-contain bg-black"
+            muted
+            playsInline
+            loop
+            autoPlay
+          />
+        ) : (
+          <img 
+            src={heroUrl} 
+            alt={title}
+            className="h-full w-full object-contain bg-black"
+          />
+        )}
+        
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+        
+        {/* Click to view overlay */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+          <div className="bg-black/70 rounded-full p-4">
+            {currentHeroMedia?.type === 'video' ? (
+              <PlayCircleIcon className="h-12 w-12 text-white" />
+            ) : (
+              <svg className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+              </svg>
+            )}
+          </div>
+        </div>
+        
+        {/* Property Badge */}
+        <div className="absolute left-6 top-6 z-10">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold shadow-lg">
+            <TagIcon className="h-4 w-4 text-[color:var(--accent-500)]" />
+            {propertyType}
+          </span>
+        </div>
+
+        {/* 3D Tour Badge */}
+        {immersive.has3D && (
+          <div className="absolute right-6 top-6 z-10">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--accent-500)] px-4 py-2 text-sm font-semibold text-white shadow-lg">
+              <CubeTransparentIcon className="h-5 w-5" />
+              3D Virtual Tour Available
+            </span>
+          </div>
+        )}
+
+        {/* Carousel Navigation Arrows */}
+        {allMedia.length > 1 && (
+          <>
+            <button
+              onClick={prevHeroMedia}
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/60 p-2 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/80 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/40 sm:left-4 sm:p-3"

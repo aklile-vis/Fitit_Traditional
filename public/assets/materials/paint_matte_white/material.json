@@ -1,0 +1,27 @@
+{
+  "slug": "paint_matte_white",
+  "name": "Matte White Paint",
+  "description": "Neutral matte wall paint (AmbientCG paintedwall 001)",
+  "textures": {
+    "Roughness": "./PaintedPlaster001_1K-JPG_Roughness.jpg",
+    "Color": "./PaintedPlaster001_1K-JPG_Color.jpg",
+    "NormalGL": "./PaintedPlaster001_1K-JPG_NormalGL.jpg",
+    "NormalDX": "./PaintedPlaster001_1K-JPG_NormalDX.jpg",
+    "Displacement": "./PaintedPlaster001_1K-JPG_Displacement.jpg"
+  },
+  "targets": [
+    "wall",
+    "living",
+    "bedroom"
+  ],
+  "properties": {
+    "roughness": 0.9,
+    "metalness": 0.0,
+    "uvScale": 1.0
+  },
+  "source": {
+    "type": "ambientcg_texture",
+    "id": "PaintedPlaster001",
+    "resolution": "1K"
+  }
+}

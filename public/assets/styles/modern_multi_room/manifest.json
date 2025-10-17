@@ -1,0 +1,124 @@
+{
+  "slug": "modern_multi_room",
+  "name": "Modern Multi-room Starter",
+  "description": "Default materials and proxy fixtures for living, bedroom, kitchen and dining spaces.",
+  "materials": [
+    {
+      "target": "living:floor",
+      "material": "floor_oak_modern",
+      "priority": 0
+    },
+    {
+      "target": "living:wall",
+      "material": "wall_paint_matte",
+      "priority": 0
+    },
+    {
+      "target": "bedroom:floor",
+      "material": "floor_oak_modern",
+      "priority": 0
+    },
+    {
+      "target": "bedroom:wall",
+      "material": "wall_paint_matte",
+      "priority": 0
+    },
+    {
+      "target": "kitchen:floor",
+      "material": "tile_ceramic_grey",
+      "priority": 0
+    },
+    {
+      "target": "kitchen:counter",
+      "material": "kitchen_quartz_white",
+      "priority": 0
+    },
+    {
+      "target": "dining:floor",
+      "material": "floor_oak_modern",
+      "priority": 0
+    },
+    {
+      "target": "bathroom:floor",
+      "material": "tile_ceramic_grey",
+      "priority": 0
+    },
+    {
+      "target": "bathroom:wall",
+      "material": "wall_paint_matte",
+      "priority": 0
+    }
+  ],
+  "fixtures": [
+    {
+      "asset": "sofa_modern_block",
+      "placement": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": 180.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "asset": "bed_platform_block",
+      "placement": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "asset": "dining_table_block",
+      "placement": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "asset": "kitchen_island_block",
+      "placement": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": 0.0,
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "tags": [
+      "modern",
+      "starter"
+    ]
+  }
+}

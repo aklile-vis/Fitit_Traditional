@@ -1,0 +1,200 @@
+"use client"
+
+import { Environment, OrbitControls, useGLTF } from '@react-three/drei'
+import { Canvas } from '@react-three/fiber'
+import { createXRStore, VRButton, XR } from '@react-three/xr'
+import { useParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import * as THREE from 'three'
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
+
+import { useAuth } from '@/contexts/AuthContext'
+import { SUPPORTED_CURRENCIES, convertAmount, formatPrice } from '@/lib/utils'
+import TraditionalViewer from "./TraditionalViewer"
+
+type MaterialCategory = 'wall' | 'floor' | 'ceiling'
+type Option = { id: string; name: string; category: MaterialCategory | string; unit: string; price: number; baseColorHex?: string | null; albedoUrl?: string|null; normalUrl?: string|null; roughnessMapUrl?: string|null; metallicMapUrl?: string|null; aoMapUrl?: string|null; tilingScale?: number|null }
+type Whitelist = { id: string; optionId: string; overridePrice: number | null; option: Option }
+type CategorizedDefaults = Record<MaterialCategory, string[]>
+type CatalogRoomAssignment = {
+  name?: string
+  roomType?: string
+  materials?: Record<string, { material?: string }>
+}
+type CatalogAssignments = {
+  style?: string
+  surfaceDefaults?: Record<string, string>
+  rooms?: CatalogRoomAssignment[]
+}
+type PriceLineItem = {
+  category: MaterialCategory
+  optionId: string
+  optionName: string
+  unitPrice: number
+  quantity: number
+  subtotal: number
+}
+type PriceBreakdown = {
+  basePrice: number
+  addonTotal: number
+  priceTotal: number
+  lineItems: PriceLineItem[]
+  savedAt?: string | null
+  clientPrice?: number | null
+  priceDifference?: number | null
+  selections?: Partial<Record<MaterialCategory, string>>
+}
+
+interface ListingUnitPayload {
+  listing: any
+  unit: any
+}
+
+const mergeBreakdown = (
+  partial: Partial<PriceBreakdown> | null | undefined,
+  fallback: PriceBreakdown,
+  selections: Partial<Record<MaterialCategory, string>>,
+): PriceBreakdown => ({
+  basePrice: typeof partial?.basePrice === 'number' ? partial.basePrice : fallback.basePrice,
+  addonTotal: typeof partial?.addonTotal === 'number' ? partial.addonTotal : fallback.addonTotal,
+  priceTotal: typeof partial?.priceTotal === 'number' ? partial.priceTotal : fallback.priceTotal,
+  lineItems:
+    Array.isArray(partial?.lineItems) && partial.lineItems.length > 0
+      ? (partial.lineItems as PriceLineItem[])
+      : fallback.lineItems,
+  savedAt: typeof partial?.savedAt === 'string' ? partial.savedAt : fallback.savedAt ?? null,
+  clientPrice: typeof partial?.clientPrice === 'number' ? partial.clientPrice : fallback.clientPrice ?? null,
+  priceDifference:
+    typeof partial?.priceDifference === 'number'
+      ? partial.priceDifference
+      : fallback.priceDifference ?? null,
+  selections,
+})
+
+type GuidedView = {
+  id: string
+  name: string
+  position: [number, number, number]
+  target: [number, number, number]
+}
+
+const FALLBACK_RATES: Record<string, number> = {
+  USD: 56.5,
+  EUR: 60.2,
+  GBP: 69.4,
+  AED: 15.4,
+  SAR: 15.1,
+  CAD: 41.2,
+  CNY: 8.2,
+}
+
+const MATERIAL_CATEGORIES: MaterialCategory[] = ['wall', 'floor', 'ceiling']
+
+function tokenizeIdentifier(value?: string | null): string[] {
+  if (!value) return []
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .sort()
+}
+
+function optionMatchesSlug(option: Option, slug: string): boolean {
+  if (!slug) return false
+  const slugTokens = tokenizeIdentifier(slug)
+  if (!slugTokens.length) return false
+  const nameTokens = tokenizeIdentifier(option.name)
+  if (slugTokens.every((token) => nameTokens.includes(token))) return true
+  const nameJoined = nameTokens.join('')
+  const slugJoined = slugTokens.join('')
+  if (nameJoined && (nameJoined.includes(slugJoined) || slugJoined.includes(nameJoined))) return true
+  const slugUnderscore = slugTokens.join('_')
+  const albedo = option.albedoUrl ? option.albedoUrl.toLowerCase() : ''
+  if (albedo && slugUnderscore && albedo.includes(slugUnderscore)) return true
+  return false
+}
+
+function Model({
+  url,
+  onCategorized,
+}: {
+  url: string
+  onCategorized: (cats: Record<MaterialCategory, THREE.Mesh[]>, defaults: CategorizedDefaults) => void
+}) {
+  const gltf = useGLTF(url)
+  const scene = gltf.scene as THREE.Group
+  useEffect(() => {
+    const cats: Record<MaterialCategory, THREE.Mesh[]> = { wall: [], floor: [], ceiling: [] }
+    const defaults: Record<MaterialCategory, Set<string>> = {
+      wall: new Set<string>(),
+      floor: new Set<string>(),
+      ceiling: new Set<string>(),
+    }
+    scene.traverse((obj) => {
+      if ((obj as THREE.Mesh).isMesh) {
+        const mesh = obj as THREE.Mesh
+        if (!mesh.geometry.boundingBox) {
+          mesh.geometry.computeBoundingBox()
+        }
+        const boundingBox = mesh.geometry.boundingBox
+        if (!boundingBox) return
+
+        const size = new THREE.Vector3()
+        boundingBox.getSize(size)
+
+        let category: MaterialCategory = 'wall'
+        if (size.z < 0.2) {
+          const center = new THREE.Vector3()
+          boundingBox.getCenter(center)
+          category = center.z < 0.5 ? 'floor' : 'ceiling'
+        }
+
+        cats[category].push(mesh)
+        mesh.castShadow = true
+        mesh.receiveShadow = true
+
+        const userData = mesh.userData as { catalogSlug?: unknown }
+        const slug = typeof userData?.catalogSlug === 'string' ? userData.catalogSlug : undefined
+        if (slug) {
+          defaults[category].add(slug)
+        }
+      }
+    })
+    onCategorized(cats, {
+      wall: Array.from(defaults.wall),
+      floor: Array.from(defaults.floor),
+      ceiling: Array.from(defaults.ceiling),
+    })
+  }, [scene, onCategorized])
+  return <primitive object={scene} />
+}
+
+export default function PublicListingPage() {
+  const { id } = useParams<{ id: string }>()
+  const [data, setData] = useState<ListingUnitPayload | null>(null)
+  const [wl, setWl] = useState<Whitelist[]>([])
+  const [status, setStatus] = useState('')
+  const [price, setPrice] = useState<number>(0)
+  const [selected, setSelected] = useState<{ wall?: string; floor?: string; ceiling?: string }>({})
+  const meshesRef = useRef<Record<MaterialCategory, THREE.Mesh[]>>({ wall: [], floor: [], ceiling: [] })
+  const [catalogDefaults, setCatalogDefaults] = useState<CategorizedDefaults>({ wall: [], floor: [], ceiling: [] })
+  const [allowedMaterials, setAllowedMaterials] = useState<Record<MaterialCategory, string[]>>({ wall: [], floor: [], ceiling: [] })
+  const { isAuthenticated, token } = useAuth()
+  const [isSaving, setIsSaving] = useState(false)
+  const [selectionLoading, setSelectionLoading] = useState(false)
+  const [priceDetails, setPriceDetails] = useState<PriceBreakdown | null>(null)
+  const [isPriceStale, setIsPriceStale] = useState(false)
+  const [isXrMode, setIsXrMode] = useState(false)
+  const [history, setHistory] = useState<PriceBreakdown[]>([])
+  const [currency, setCurrency] = useState<string>('ETB')
+  const [preferredCurrency, setPreferredCurrency] = useState<string>('ETB')
+  const [rates, setRates] = useState<Record<string, number>>({ ETB: 1 })
+  const [ratesReady, setRatesReady] = useState(false)
+  const [guidedViews, setGuidedViews] = useState<GuidedView[]>([])
+  const xrStore = useMemo(() => createXRStore(), [])
+  const controlsRef = useRef<OrbitControlsImpl | null>(null)
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
+
+  type ViewerTab = "immersive" | "traditional"
+  const [activeTab, setActiveTab] = useState<ViewerTab>("traditional")
+  const [has3DSupport, setHas3DSupport] = useState<boolean>(false)

@@ -1,0 +1,33 @@
+{
+  "slug": "floor_oak_modern",
+  "name": "Modern Oak Floor",
+  "description": "Warm medium-tone oak planks for living/bedroom floors.",
+  "textures": {
+    "albedo": "./albedo.png",
+    "normal": "./normal.png",
+    "roughness": "./roughness.png",
+    "ao": "./ao.png"
+  },
+  "properties": {
+    "roughness": 0.55,
+    "metalness": 0.02,
+    "uvScale": [
+      1.2,
+      1.2
+    ],
+    "baseColor": [
+      166,
+      126,
+      88
+    ]
+  },
+  "targets": [
+    "floor",
+    "wood",
+    "living",
+    "bedroom"
+  ],
+  "source": {
+    "type": "synthetic_demo"
+  }
+}

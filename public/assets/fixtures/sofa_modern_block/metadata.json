@@ -1,0 +1,35 @@
+{
+  "slug": "sofa_modern_block",
+  "name": "Modern Sofa (Placeholder)",
+  "description": "Three-seat sofa proxy for catalog demos.",
+  "modelPath": "./model.glb",
+  "thumbnail": "./preview.png",
+  "metadata": {
+    "defaultRoom": "living",
+    "tags": [
+      "living",
+      "seating"
+    ],
+    "placement": {
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": 180.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "size": [
+      2.2,
+      0.9,
+      0.75
+    ]
+  },
+  "source": {
+    "type": "synthetic_demo"
+  }
+}

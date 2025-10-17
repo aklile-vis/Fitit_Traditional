@@ -1,0 +1,34 @@
+{
+  "slug": "kitchen_island_block",
+  "name": "Kitchen Island (Placeholder)",
+  "description": "Simple kitchen island block for staging.",
+  "modelPath": "./model.glb",
+  "thumbnail": "./preview.png",
+  "metadata": {
+    "defaultRoom": "kitchen",
+    "tags": [
+      "kitchen"
+    ],
+    "placement": {
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": 0.0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "size": [
+      2.4,
+      1.0,
+      0.9
+    ]
+  },
+  "source": {
+    "type": "synthetic_demo"
+  }
+}

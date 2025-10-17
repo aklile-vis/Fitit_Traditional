@@ -1,0 +1,26 @@
+{
+  "slug": "counter_quartz_white",
+  "name": "White Quartz Countertop",
+  "description": "Quartz countertop for kitchens (AmbientCG Marble 010)",
+  "textures": {
+    "NormalGL": "./Marble010_2K-JPG_NormalGL.jpg",
+    "Roughness": "./Marble010_2K-JPG_Roughness.jpg",
+    "NormalDX": "./Marble010_2K-JPG_NormalDX.jpg",
+    "Color": "./Marble010_2K-JPG_Color.jpg",
+    "Displacement": "./Marble010_2K-JPG_Displacement.jpg"
+  },
+  "targets": [
+    "kitchen",
+    "counter"
+  ],
+  "properties": {
+    "roughness": 0.35,
+    "metalness": 0.0,
+    "uvScale": 1.0
+  },
+  "source": {
+    "type": "ambientcg_texture",
+    "id": "Marble010",
+    "resolution": "2K"
+  }
+}

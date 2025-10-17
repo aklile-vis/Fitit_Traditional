@@ -1,0 +1,31 @@
+{
+  "slug": "kitchen_quartz_white",
+  "name": "White Quartz Slab",
+  "description": "Subtle speckled quartz countertop finish.",
+  "textures": {
+    "albedo": "./albedo.png",
+    "normal": "./normal.png",
+    "roughness": "./roughness.png",
+    "ao": "./ao.png"
+  },
+  "properties": {
+    "roughness": 0.38,
+    "metalness": 0.02,
+    "uvScale": [
+      1.4,
+      1.4
+    ],
+    "baseColor": [
+      223,
+      223,
+      220
+    ]
+  },
+  "targets": [
+    "counter",
+    "kitchen"
+  ],
+  "source": {
+    "type": "synthetic_demo"
+  }
+}

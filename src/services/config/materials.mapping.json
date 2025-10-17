@@ -1,0 +1,32 @@
+{
+  "wall/plaster": {
+    "albedo": "ambientcg:Plaster001",
+    "roughness": 0.9,
+    "metallic": 0.0
+  },
+  "wall/brick": {
+    "albedo": "ambientcg:BrickExterior018",
+    "roughness": 0.8,
+    "metallic": 0.0
+  },
+  "floor/wood": {
+    "albedo": "ambientcg:WoodFloor044",
+    "roughness": 0.6,
+    "metallic": 0.0
+  },
+  "floor/concrete": {
+    "albedo": "ambientcg:Concrete054",
+    "roughness": 0.9,
+    "metallic": 0.0
+  },
+  "door/wood": {
+    "albedo": "ambientcg:Wood049",
+    "roughness": 0.5,
+    "metallic": 0.0
+  },
+  "window/glass": {
+    "albedo": "polyhaven:Glass",
+    "ior": 1.5,
+    "transmission": 0.95
+  }
+}

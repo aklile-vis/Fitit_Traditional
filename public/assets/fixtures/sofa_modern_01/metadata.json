@@ -1,0 +1,12 @@
+{
+  "slug": "sofa_modern_01",
+  "name": "Modern Sofa 3-Seater",
+  "modelPath": "./model.glb",
+  "thumbnail": "./preview.png",
+  "metadata": {
+    "footprint": [2.2, 0.9],
+    "defaultRotation": 180,
+    "tags": ["living", "seating"],
+    "anchor": "center"
+  }
+}

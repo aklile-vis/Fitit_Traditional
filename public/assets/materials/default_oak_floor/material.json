@@ -1,0 +1,16 @@
+{
+  "slug": "default_oak_floor",
+  "name": "Default Oak Floor",
+  "description": "Warm oak planks suitable for living spaces.",
+  "textures": {
+    "albedo": "./albedo.jpg",
+    "normal": "./normal.jpg",
+    "roughness": "./roughness.jpg",
+    "ao": "./ao.jpg"
+  },
+  "properties": {
+    "roughness": 0.65,
+    "metalness": 0.0,
+    "uvScale": [1.5, 1.5]
+  }
+}

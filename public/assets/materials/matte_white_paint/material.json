@@ -1,0 +1,13 @@
+{
+  "slug": "matte_white_paint",
+  "name": "Matte White Paint",
+  "description": "Low sheen neutral wall paint for bright interiors.",
+  "textures": {
+    "albedo": "./albedo.jpg"
+  },
+  "properties": {
+    "roughness": 0.9,
+    "metalness": 0.0,
+    "uvScale": [1.0, 1.0]
+  }
+}

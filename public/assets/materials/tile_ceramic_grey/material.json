@@ -1,0 +1,32 @@
+{
+  "slug": "tile_ceramic_grey",
+  "name": "Ceramic Grey Tile",
+  "description": "Grey ceramic tile suitable for kitchens and bathrooms.",
+  "textures": {
+    "albedo": "./albedo.png",
+    "normal": "./normal.png",
+    "roughness": "./roughness.png",
+    "ao": "./ao.png"
+  },
+  "properties": {
+    "roughness": 0.42,
+    "metalness": 0.01,
+    "uvScale": [
+      1.0,
+      1.0
+    ],
+    "baseColor": [
+      126,
+      127,
+      130
+    ]
+  },
+  "targets": [
+    "floor",
+    "bathroom",
+    "kitchen"
+  ],
+  "source": {
+    "type": "synthetic_demo"
+  }
+}
