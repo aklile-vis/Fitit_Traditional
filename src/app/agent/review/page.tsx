@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from 'next/navigation'
 
 import { useAuth } from '@/contexts/AuthContext'
@@ -9,15 +9,223 @@ import ListingSuccessModal from '@/components/ListingSuccessModal'
 import {
   CheckBadgeIcon,
   ClipboardDocumentListIcon,
-  CubeTransparentIcon,
   ExclamationTriangleIcon,
   MapPinIcon,
   PhotoIcon,
   PlayCircleIcon,
-  TagIcon,
+  ArrowsPointingOutIcon,
+  ArrowsPointingInIcon,
+  SpeakerWaveIcon,
+  SpeakerXMarkIcon,
+  PauseIcon,
 } from "@heroicons/react/24/outline"
 import { XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid'
 
+// Custom Video Player Component
+function CustomVideoPlayer({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showControls, setShowControls] = useState(true)
+  const controlsTimeoutRef = useRef<any>(undefined)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause()
+      } else {
+        videoRef.current.play()
+      }
+    }
+  }
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted
+      setIsMuted(!isMuted)
+    }
+  }
+
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return
+
+    if (!isFullscreen) {
+      if (containerRef.current.requestFullscreen) {
+        containerRef.current.requestFullscreen()
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen()
+      }
+    }
+  }
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime)
+    }
+  }
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration)
+    }
+  }
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value)
+    if (videoRef.current) {
+      videoRef.current.currentTime = time
+      setCurrentTime(time)
+    }
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const handleMouseMove = () => {
+    setShowControls(true)
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current)
+    }
+    if (isPlaying) {
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false)
+      }, 3000)
+    }
+  }
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative max-h-[90vh] w-full max-w-5xl bg-black rounded-xl overflow-hidden shadow-2xl"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => isPlaying && setShowControls(false)}
+    >
+      <video
+        ref={videoRef}
+        src={src}
+        className="w-full h-full max-h-[90vh] object-contain"
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onClick={togglePlay}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+      />
+
+      {/* Center Play/Pause Overlay */}
+      {!isPlaying && (
+        <div
+          className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer"
+          onClick={togglePlay}
+        >
+          <div className="bg-[color:var(--accent-500)] rounded-full p-6 shadow-2xl transform hover:scale-110 transition-transform">
+            <PlayCircleIcon className="h-16 w-16 text-white" />
+          </div>
+        </div>
+      )}
+
+      {/* Custom Controls */}
+      <div
+        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent transition-opacity duration-300 ${
+          showControls ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        {/* Progress Bar */}
+        <div className="px-4 pt-4">
+          <input
+            type="range"
+            min="0"
+            max={duration || 0}
+            value={currentTime}
+            onChange={handleSeek}
+            className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[color:var(--accent-500)] hover:h-2 transition-all"
+            style={{
+              background: `linear-gradient(to right, var(--accent-500) 0%, var(--accent-500) ${(currentTime / duration) * 100}%, rgba(255,255,255,0.2) ${(currentTime / duration) * 100}%, rgba(255,255,255,0.2) 100%)`
+            }}
+          />
+        </div>
+
+        {/* Controls Bar */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            {/* Play/Pause Button */}
+            <button
+              onClick={togglePlay}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? (
+                <PauseIcon className="h-6 w-6 text-white" />
+              ) : (
+                <PlayCircleIcon className="h-6 w-6 text-white" />
+              )}
+            </button>
+
+            {/* Volume Button */}
+            <button
+              onClick={toggleMute}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? (
+                <SpeakerXMarkIcon className="h-6 w-6 text-white" />
+              ) : (
+                <SpeakerWaveIcon className="h-6 w-6 text-white" />
+              )}
+            </button>
+
+            {/* Time Display */}
+            <div className="text-white text-sm font-medium">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Fullscreen Button */}
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            >
+              {isFullscreen ? (
+                <ArrowsPointingInIcon className="h-6 w-6 text-white" />
+              ) : (
+                <ArrowsPointingOutIcon className="h-6 w-6 text-white" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function AgentListingReviewPage() {
   const [draft, setDraft] = useState<any>(null)
@@ -63,19 +271,19 @@ export default function AgentListingReviewPage() {
           coverImage: parsed?.media?.coverImage || null,
         },
         immersive: {
-          has3D: Boolean(parsed?.immersive?.has3D),
-          glbPath: parsed?.immersive?.glbPath || undefined,
-          ifcPath: parsed?.immersive?.ifcPath || undefined,
-          usdPath: parsed?.immersive?.usdPath || undefined,
-          filePath: parsed?.immersive?.filePath || undefined,
-          fileName: parsed?.immersive?.fileName || undefined,
-          elementsCount: parsed?.immersive?.elementsCount || 0,
-          aiEnrichment: parsed?.immersive?.aiEnrichment || null,
-          topologyPath: parsed?.immersive?.topologyPath || undefined,
-          processedAt: parsed?.immersive?.processedAt || undefined,
-          editorChanges: parsed?.immersive?.editorChanges || null,
-          unitId: parsed?.immersive?.unitId || undefined,
-          viewerLink: parsed?.immersive?.viewerLink || undefined,
+          has3D: false,
+          glbPath: undefined,
+          ifcPath: undefined,
+          usdPath: undefined,
+          filePath: undefined,
+          fileName: undefined,
+          elementsCount: 0,
+          aiEnrichment: null,
+          topologyPath: undefined,
+          processedAt: undefined,
+          editorChanges: null,
+          unitId: undefined,
+          viewerLink: undefined,
         },
       }
       setDraft(normalized)
@@ -87,38 +295,9 @@ export default function AgentListingReviewPage() {
   // Build absolute URLs for stored paths
   const toAbsolute = (url: string) => (url?.startsWith('http') ? url : `/api/files/binary?path=${encodeURIComponent(url)}`)
 
-// Hero carousel state
-  const [heroIndex, setHeroIndex] = useState(0)
-
   // Lightbox state
   type Viewer = { type: 'image' | 'video'; index: number; isFloorPlan?: boolean } | null
   const [viewer, setViewer] = useState<Viewer>(null)
-
-
-  // Hero carousel navigation
-  const nextHeroMedia = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (allMedia.length > 0) {
-      setHeroIndex((prev) => (prev + 1) % allMedia.length)
-    }
-  }
-
-  const prevHeroMedia = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (allMedia.length > 0) {
-      setHeroIndex((prev) => (prev - 1 + allMedia.length) % allMedia.length)
-    }
-  }
-
-  const openHeroInViewer = () => {
-    if (allMedia.length > 0 && currentHeroMedia) {
-      if (currentHeroMedia.type === 'image') {
-        setViewer({ type: 'image', index: currentHeroMedia.index })
-      } else {
-        setViewer({ type: 'video', index: currentHeroMedia.index })
-      }
-    }
-  }
 
 
   const onCardKeyDown = (e: React.KeyboardEvent, open: () => void) => {
@@ -158,16 +337,6 @@ export default function AgentListingReviewPage() {
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow }
   }, [viewer, closeViewer, nextViewer, prevViewer])
 
-
-  // Set hero index to cover image when media is available - defined before early return
-  useEffect(() => {
-    if (draft?.media?.coverImage && draft?.media?.images?.length > 0) {
-      const coverIndex = draft.media.images.findIndex((img: string) => img === draft.media.coverImage)
-      if (coverIndex >= 0) {
-        setHeroIndex(coverIndex)
-      }
-    }
-  }, [draft?.media?.coverImage, draft?.media?.images])
 
   // Router and auth hooks - defined before early return
   const router = useRouter()
@@ -209,7 +378,7 @@ export default function AgentListingReviewPage() {
     )
   }
 
-  const { title, subtitle, pricing, propertyType, location, specs, description, amenities, features, media, immersive } = draft
+  const { title, subtitle, pricing, propertyType, location, specs, description, amenities, features, media } = draft
 
 
   const publishListing = async () => {
@@ -251,18 +420,18 @@ export default function AgentListingReviewPage() {
         features: draft?.features || [],
         isPublished: true, // Mark as published when submitted from here
         immersive: {
-          has3D: immersive.has3D,
-          glbPath: immersive.glbPath,
-          ifcPath: immersive.ifcPath,
-          usdPath: immersive.usdPath,
-          filePath: immersive.filePath,
-          fileName: immersive.fileName,
-          elementsCount: immersive.elementsCount,
-          aiEnrichment: immersive.aiEnrichment,
-          topologyPath: immersive.topologyPath,
-          processedAt: immersive.processedAt,
-          editorChanges: immersive.editorChanges,
-          unitId: immersive.unitId,
+          has3D: false,
+          glbPath: undefined,
+          ifcPath: undefined,
+          usdPath: undefined,
+          filePath: undefined,
+          fileName: undefined,
+          elementsCount: 0,
+          aiEnrichment: null,
+          topologyPath: undefined,
+          processedAt: undefined,
+          editorChanges: null,
+          unitId: undefined,
         },
         // unitId is intentionally omitted if not present in the draft
       }
@@ -322,23 +491,13 @@ export default function AgentListingReviewPage() {
     }
   }
 
-  // Combine images and videos for carousel
-  const allMedia = [
-    ...media.images.map((img: string, index: number) => ({ type: 'image' as const, url: img, index })),
-    ...media.videos.map((video: any, index: number) => ({ type: 'video' as const, url: video.url, index, label: video.label }))
-  ]
-
-  // Get current hero media based on carousel index
-  const currentHeroMedia = allMedia.length > 0 ? allMedia[heroIndex] : null
-  const heroUrl = currentHeroMedia ? toAbsolute(currentHeroMedia.url) : 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1600&q=80'
-
   return (
     <div className="min-h-screen bg-[color:var(--app-background)] text-primary">
       {/* Step Indicator */}
       <div className="border-b border-[color:var(--surface-border)] bg-[color:var(--surface-1)]">
         <div className="container py-6">
           <div className="flex items-center justify-center space-x-8">
-            {[1, 2, 3, 4].map((step) => (
+            {[1, 2, 3].map((step) => (
               <div key={step} className="flex items-center">
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold ${
@@ -347,14 +506,14 @@ export default function AgentListingReviewPage() {
                       : 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)] text-white'
                   }`}
                 >
-                  {step === 4 ? <ClipboardDocumentListIcon className="h-5 w-5" /> : step}
+                  {step === 3 ? <ClipboardDocumentListIcon className="h-5 w-5" /> : step}
                 </div>
                 <div className="ml-3 text-sm">
-                  <p className={`font-medium ${step <= 4 ? 'text-primary' : 'text-muted'}`}>
-                    {step === 1 ? 'Property Details' : step === 2 ? 'Media Upload' : step === 3 ? '3D Pipeline' : 'Review & Preview'}
+                  <p className={`font-medium ${step <= 3 ? 'text-primary' : 'text-muted'}`}>
+                    {step === 1 ? 'Property Details' : step === 2 ? 'Media Upload' : 'Review & Preview'}
                   </p>
                 </div>
-                {step < 4 && (
+                {step < 3 && (
                   <div className={`ml-8 h-px w-16 ${step < 3 ? 'bg-[color:var(--accent-500)]' : 'bg-[color:var(--accent-500)]'}`} />
                 )}
               </div>
@@ -369,7 +528,7 @@ export default function AgentListingReviewPage() {
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10 px-4 py-1.5 text-xs uppercase tracking-[0.35em] text-[color:var(--accent-500)]">
-                <ClipboardDocumentListIcon className="h-4 w-4" /> Step 4 of 4
+                <ClipboardDocumentListIcon className="h-4 w-4" /> Step 3 of 3
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-primary">Final Review & Preview</h1>
@@ -396,117 +555,88 @@ export default function AgentListingReviewPage() {
         </div>
       </div>
 
-      {/* Hero Media Carousel Section */}
-      <div 
-        className="relative h-[500px] overflow-hidden bg-black cursor-pointer group"
-        onClick={openHeroInViewer}
-      >
-        {/* Media Content */}
-        {currentHeroMedia?.type === 'video' ? (
-          <video
-            src={heroUrl}
-            className="h-full w-full object-contain bg-black"
-            muted
-            playsInline
-            loop
-            autoPlay
-            controls={false}
-            onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}) }}
-            onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0 }}
-          />
-        ) : (
-          <img 
-            src={heroUrl} 
-            alt={title}
-            className="h-full w-full object-contain bg-black"
-          />
-        )}
-        
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-        
-        {/* Click to view overlay */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-          <div className="bg-black/70 rounded-full p-4">
-            {currentHeroMedia?.type === 'video' ? (
-              <PlayCircleIcon className="h-12 w-12 text-white" />
-            ) : (
-              <svg className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-              </svg>
-            )}
+      {/* Hero Media Grid Section */}
+      <div className="container py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 rounded-2xl overflow-hidden">
+          {/* Main Large Image */}
+          <div 
+            className="relative aspect-[16/10] lg:aspect-auto lg:min-h-[600px] cursor-pointer group overflow-hidden rounded-2xl"
+            onClick={() => setViewer({ type: 'image', index: 0 })}
+          >
+            <img
+              src={toAbsolute(media.coverImage || media.images[0])}
+              alt="Cover"
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
+            
+            {/* Media Count Badges */}
+            <div className="absolute bottom-4 right-4 flex gap-2">
+              <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg">
+                <PhotoIcon className="h-5 w-5 text-[color:var(--accent-500)]" />
+                <span className="text-sm font-semibold text-primary">{media.images.length}</span>
+              </div>
+              {media.videos.length > 0 && (
+                <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg">
+                  <PlayCircleIcon className="h-5 w-5 text-[color:var(--accent-500)]" />
+                  <span className="text-sm font-semibold text-primary">{media.videos.length}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Thumbnail Grid (Right Side - Hidden on Mobile) */}
+          <div className="hidden lg:grid grid-rows-3 gap-4">
+            {[...media.images.slice(1, 4), ...media.videos.slice(0, Math.max(0, 3 - media.images.slice(1, 4).length))].slice(0, 3).map((item, idx) => {
+              const isVideo = typeof item === 'object' && item.url
+              const src = isVideo ? toAbsolute(item.url) : toAbsolute(item as string)
+              const actualIndex = isVideo ? media.images.length + idx : idx + 1
+              const totalMedia = media.images.length + media.videos.length
+              const isLast = idx === 2 && totalMedia > 4
+              
+              return (
+                <div
+                  key={idx}
+                  className="relative aspect-[4/3] cursor-pointer group overflow-hidden rounded-xl"
+                  onClick={() => {
+                    if (isVideo) {
+                      setViewer({ type: 'video', index: media.videos.findIndex((v: any) => v.url === item.url) })
+                    } else {
+                      setViewer({ type: 'image', index: actualIndex })
+                    }
+                  }}
+                >
+                  {isVideo ? (
+                    <>
+                      <video
+                        src={src}
+                        className="w-full h-full object-cover"
+                        muted
+                        playsInline
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <PlayCircleIcon className="h-12 w-12 text-white" />
+                      </div>
+                    </>
+                  ) : (
+                    <img
+                      src={src}
+                      alt={`Thumbnail ${idx + 1}`}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    />
+                  )}
+                  
+                  {/* "+X more" Overlay */}
+                  {isLast && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                      <span className="text-3xl font-bold text-white">+{totalMedia - 4}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
-        
-        {/* Property Badge */}
-        <div className="absolute left-6 top-6 z-10">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold shadow-lg">
-            <TagIcon className="h-4 w-4 text-[color:var(--accent-500)]" />
-            {propertyType}
-          </span>
-        </div>
-
-        {/* 3D Tour Badge */}
-        {immersive.has3D && (
-          <div className="absolute right-6 top-6 z-10">
-            <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--accent-500)] px-4 py-2 text-sm font-semibold text-white shadow-lg">
-              <CubeTransparentIcon className="h-5 w-5" />
-              3D Virtual Tour Available
-            </span>
-          </div>
-        )}
-
-        {/* Carousel Navigation Arrows */}
-        {allMedia.length > 1 && (
-          <>
-            <button
-              onClick={prevHeroMedia}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/60 p-3 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/80 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/40"
-              aria-label="Previous media"
-            >
-              <ChevronLeftIcon className="h-6 w-6" />
-            </button>
-            <button
-              onClick={nextHeroMedia}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/60 p-3 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/80 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/40"
-              aria-label="Next media"
-            >
-              <ChevronRightIcon className="h-6 w-6" />
-            </button>
-          </>
-        )}
-
-        {/* Media Counter & Indicator Dots */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm">
-            {currentHeroMedia?.type === 'video' ? (
-              <PlayCircleIcon className="h-5 w-5" />
-            ) : (
-              <PhotoIcon className="h-5 w-5" />
-            )}
-            <span>{heroIndex + 1} / {allMedia.length}</span>
-          </div>
-        </div>
-
-        {/* Dot Indicators */}
-        {allMedia.length > 1 && allMedia.length <= 10 && (
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
-            {allMedia.map((mediaItem, index) => (
-              <button
-                key={index}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setHeroIndex(index)
-                }}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  index === heroIndex 
-                    ? 'w-8 bg-white' 
-                    : 'w-2 bg-white/50 hover:bg-white/80'
-                }`}
-                aria-label={`Go to ${mediaItem.type} ${index + 1}`}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Main Content */}
@@ -589,8 +719,8 @@ export default function AgentListingReviewPage() {
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                     {amenities.map((item: string) => (
                       <div key={item} className="flex items-center gap-2 text-sm text-secondary">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100">
-                          <CheckBadgeIcon className="h-4 w-4 text-green-600" />
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10">
+                          <CheckBadgeIcon className="h-4 w-4 text-[color:var(--accent-500)]" />
                         </div>
                         <span>{item}</span>
                       </div>
@@ -605,8 +735,8 @@ export default function AgentListingReviewPage() {
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                     {features.map((item: string) => (
                       <div key={item} className="flex items-center gap-2 text-sm text-secondary">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
-                          <CheckBadgeIcon className="h-4 w-4 text-blue-600" />
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10">
+                          <CheckBadgeIcon className="h-4 w-4 text-[color:var(--accent-500)]" />
                         </div>
                         <span>{item}</span>
                       </div>
@@ -655,35 +785,56 @@ export default function AgentListingReviewPage() {
             {/* Video Tours */}
             {media.videos.length > 0 && (
               <section className="space-y-4">
-                <h2 className="text-2xl font-semibold text-primary">Video Tours</h2>
+                <h2 className="text-2xl font-semibold text-primary">Video Tours ({media.videos.length})</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {media.videos.map((video: any, index: number) => (
+                  {media.videos.map((video: any, index: number) => {
+                    // Handle both string URLs and objects with url property
+                    const videoUrl = typeof video === 'string' ? video : video?.url
+                    
+                    // Skip if no valid URL
+                    if (!videoUrl || typeof videoUrl !== 'string') {
+                      console.warn('Invalid video data:', video)
+                      return null
+                    }
+                    
+                    console.log('Video URL:', toAbsolute(videoUrl))
+                    
+                    return (
                     <figure
-                      key={video.url}
+                      key={`video-${index}-${video}`}
                       role="button"
                       tabIndex={0}
                       onClick={() => setViewer({ type: 'video', index })}
                       onKeyDown={(e) => onCardKeyDown(e, () => setViewer({ type: 'video', index }))}
-                      className="group relative overflow-hidden rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-500)]"
+                      className="group relative overflow-hidden rounded-xl border border-[color:var(--surface-border)] bg-gray-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-500)] shadow-md hover:shadow-lg transition-all duration-300"
                     >
                       <video
-                        src={toAbsolute(video.url)}
-                        preload="metadata"
+                        src={toAbsolute(videoUrl)}
+                        preload="auto"
                         muted
                         playsInline
                         className="h-64 w-full object-cover"
                         controls={false}
+                        poster=""
+                        onLoadStart={() => console.log('Video loading started:', videoUrl)}
+                        onLoadedData={() => console.log('Video data loaded:', videoUrl)}
+                        onLoadedMetadata={() => console.log('Video metadata loaded:', videoUrl)}
+                        onCanPlay={() => console.log('Video can play:', videoUrl)}
+                        onError={(e) => console.error('Video error:', e, videoUrl)}
                         onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}) }}
                         onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0 }}
                       />
-                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity group-hover:opacity-0">
-                        <PlayCircleIcon className="h-16 w-16 text-white drop-shadow-lg" />
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity group-hover:bg-black/10">
+                        <div className="bg-black/70 backdrop-blur-sm rounded-full p-4">
+                          <PlayCircleIcon className="h-14 w-14 text-white drop-shadow-lg" />
+                        </div>
                       </div>
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                        <p className="text-sm font-medium text-white">{video.label || 'Video Tour'}</p>
+                        <p className="text-sm font-semibold text-white">Video Tour</p>
                       </div>
                     </figure>
-                  ))}
+                    )
+                  }).filter(Boolean)}
                 </div>
               </section>
             )}
@@ -694,11 +845,20 @@ export default function AgentListingReviewPage() {
                 <h2 className="text-2xl font-semibold text-primary">Floor Plans</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {media.floorPlans.map((floorPlan: any) => {
-                    const floorPlanUrl = floorPlan.url.startsWith('http')
-                      ? floorPlan.url
-                      : `/api/files/binary?path=${encodeURIComponent(floorPlan.url)}`
+                    // Handle different data structures - floorPlan could be a string URL or an object
+                    const floorPlanUrlRaw = typeof floorPlan === 'string' ? floorPlan : floorPlan?.url
                     
-                    const isPDF = floorPlan.url.includes('.pdf')
+                    // Skip if no valid URL
+                    if (!floorPlanUrlRaw) {
+                      console.warn('Invalid floor plan data:', floorPlan)
+                      return null
+                    }
+                    
+                    const floorPlanUrl = floorPlanUrlRaw.startsWith('http')
+                      ? floorPlanUrlRaw
+                      : `/api/files/binary?path=${encodeURIComponent(floorPlanUrlRaw)}`
+                    
+                    const isPDF = floorPlanUrlRaw.includes('.pdf')
                     const isImage = !isPDF
 
                     const handleFloorPlanClick = () => {
@@ -713,7 +873,7 @@ export default function AgentListingReviewPage() {
 
                     return (
                       <div
-                        key={floorPlan.url}
+                        key={floorPlanUrlRaw}
                         className={`flex items-center gap-4 rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-4 ${
                           isImage ? 'cursor-pointer hover:bg-[color:var(--surface-2)] transition-colors' : ''
                         }`}
@@ -740,7 +900,7 @@ export default function AgentListingReviewPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium text-primary truncate">{floorPlan.name}</p>
+                            <p className="font-medium text-primary truncate">{typeof floorPlan === 'object' ? floorPlan.name || 'Floor Plan' : 'Floor Plan'}</p>
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                               isPDF 
                                 ? 'bg-[color:var(--accent-500)]/10 text-[color:var(--accent-500)]' 
@@ -764,110 +924,11 @@ export default function AgentListingReviewPage() {
                         </button>
                       </div>
                     )
-                  })}
+                  }).filter(Boolean)}
                 </div>
               </section>
             )}
 
-            {/* 3D Virtual Tour Preview */}
-            {immersive.has3D && (
-              <section className="space-y-4">
-                <h2 className="text-2xl font-semibold text-primary">3D Virtual Tour</h2>
-                <div className="space-y-4">
-                  {/* 3D Model Preview */}
-                  <div className="aspect-video bg-gray-100 rounded-xl border border-[color:var(--surface-border)] overflow-hidden">
-                    {immersive.glbPath ? (
-                      <iframe 
-                        src={`/agent/3d-viewer?model=${encodeURIComponent(immersive.glbPath)}&embedded=true&controls=true`}
-                        className="w-full h-full"
-                        title="3D Virtual Tour Preview"
-                        allow="fullscreen"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                        <div className="text-center">
-                          <CubeTransparentIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-600">3D Model Loading...</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* 3D Details */}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-3 rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-4">
-                      <h3 className="font-medium text-primary">Model Information</h3>
-                      <dl className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <dt className="text-muted">File Name</dt>
-                          <dd className="font-medium text-primary">{immersive.fileName || '3D Model'}</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted">Elements</dt>
-                          <dd className="font-medium text-primary">{immersive.elementsCount}</dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted">Processed</dt>
-                          <dd className="font-medium text-primary">
-                            {immersive.processedAt ? new Date(immersive.processedAt).toLocaleDateString() : 'Recently'}
-                          </dd>
-                        </div>
-                      </dl>
-                    </div>
-                    
-                    {/* Editor Changes Summary */}
-                    {immersive.editorChanges && (
-                      <div className="space-y-3 rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-4">
-                        <h3 className="font-medium text-primary">Customizations</h3>
-                        <div className="space-y-2 text-sm">
-                          {immersive.editorChanges.materialAssignments && Object.keys(immersive.editorChanges.materialAssignments).length > 0 && (
-                            <div className="flex justify-between">
-                              <dt className="text-muted">Materials Updated</dt>
-                              <dd className="font-medium text-primary">{Object.keys(immersive.editorChanges.materialAssignments).length}</dd>
-                            </div>
-                          )}
-                          {immersive.editorChanges.navigation?.guidedViews && immersive.editorChanges.navigation.guidedViews.length > 0 && (
-                            <div className="flex justify-between">
-                              <dt className="text-muted">Saved Views</dt>
-                              <dd className="font-medium text-primary">{immersive.editorChanges.navigation.guidedViews.length}</dd>
-                            </div>
-                          )}
-                          <div className="flex justify-between">
-                            <dt className="text-muted">Last Updated</dt>
-                            <dd className="font-medium text-primary">
-                              {immersive.editorChanges.updatedAt ? new Date(immersive.editorChanges.updatedAt).toLocaleDateString() : 'Recently'}
-                            </dd>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* 3D Features */}
-                  <div className="rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-4">
-                    <h3 className="font-medium text-primary mb-3">3D Features</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="text-secondary">Interactive Navigation</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="text-secondary">Material Customization</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="text-secondary">AI-Enhanced</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="text-secondary">Mobile Compatible</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
           </div>
 
           {/* Right Column - Contact Card (Sticky) */}
@@ -899,36 +960,13 @@ export default function AgentListingReviewPage() {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted">Status</span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--accent-500)]/10 px-2 py-1 text-xs font-medium text-[color:var(--accent-500)]">
                       <CheckBadgeIcon className="h-3 w-3" />
                       Available
                     </span>
                   </div>
                 </div>
               </section>
-
-              {/* 3D Virtual Tour Card */}
-              {immersive.has3D && (
-                <section className="rounded-2xl border-2 border-[color:var(--accent-500)] bg-gradient-to-br from-[color:var(--accent-500)]/5 to-transparent p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent-500)]">
-                      <CubeTransparentIcon className="h-7 w-7 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-primary">3D Virtual Tour</h3>
-                      <p className="text-xs text-muted">Explore in 3D</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-secondary mb-4">
-                    Experience this property in immersive 3D. Walk through every room from the comfort of your home.
-                  </p>
-                  {immersive.viewerLink && (
-                    <Link href={immersive.viewerLink} className="btn btn-primary w-full justify-center">
-                      Launch 3D Tour
-                    </Link>
-                  )}
-                </section>
-              )}
 
               {/* Quick Stats */}
               <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6">
@@ -970,7 +1008,14 @@ export default function AgentListingReviewPage() {
           // Handle regular images and videos
           list = viewer.type === 'image' ? media.images : media.videos
           current = list[viewer.index]
-          src = viewer.type === 'image' ? toAbsolute(current as string) : toAbsolute((current as {url:string}).url)
+          
+          // Handle both string URLs and objects with url property for videos
+          if (viewer.type === 'video') {
+            const videoUrl = typeof current === 'string' ? current : current?.url
+            src = toAbsolute(videoUrl)
+          } else {
+            src = toAbsolute(current as string)
+          }
         }
 
         const isPdf = current && (
@@ -985,70 +1030,64 @@ export default function AgentListingReviewPage() {
             aria-modal="true"
             onClick={closeViewer}
           >
+            {/* Close button - fixed to screen corner */}
+            <button
+              type="button"
+              onClick={closeViewer}
+              aria-label="Close viewer"
+              className="fixed right-6 top-6 z-20 rounded-full bg-black/90 backdrop-blur-sm border border-white/20 p-4 text-white hover:bg-black hover:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/60 transition-all duration-200 shadow-lg"
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+
+            {/* Navigation arrows - fixed to bottom of screen */}
+            {list.length > 1 && (
+              <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
+                <div className="inline-flex items-center gap-3 rounded-full bg-black/90 backdrop-blur-sm border border-white/20 px-4 py-3 pointer-events-auto shadow-lg">
+                  <button
+                    type="button"
+                    onClick={prevViewer}
+                    aria-label="Previous"
+                    className="rounded-full p-3 text-white hover:bg-white/20 hover:border-white/40 border border-transparent focus:outline-none focus:ring-2 focus:ring-white/60 transition-all duration-200"
+                  >
+                    <ChevronLeftIcon className="h-6 w-6" />
+                  </button>
+                  <span className="text-sm text-white font-semibold px-3 py-1 bg-white/10 rounded-full">
+                    {viewer.index + 1} / {list.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={nextViewer}
+                    aria-label="Next"
+                    className="rounded-full p-3 text-white hover:bg-white/20 hover:border-white/40 border border-transparent focus:outline-none focus:ring-2 focus:ring-white/60 transition-all duration-200"
+                  >
+                    <ChevronRightIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Content container - centered */}
             <div
-              className="relative max-h-[90vh] w-full max-w-6xl"
+              className="flex items-center justify-center w-full"
               onClick={(e) => e.stopPropagation()}
             >
               {isPdf ? (
                 // PDF viewer with fallback
-                <div className="w-full h-full">
-                  <iframe
-                    src={`${src}#toolbar=0&navpanes=0&scrollbar=1&zoom=FitH`}
-                    className="mx-auto max-h-[90vh] w-full max-w-full rounded"
-                    title="PDF Viewer"
-                    onError={() => {
-                      // Fallback: open in new tab if iframe fails
-                      window.open(src, '_blank')
-                    }}
-                  />
-                </div>
+                <iframe
+                  src={`${src}#toolbar=0&navpanes=0&scrollbar=1&zoom=FitH`}
+                  className="max-h-[90vh] w-full max-w-5xl rounded"
+                  title="PDF Viewer"
+                  onError={() => {
+                    // Fallback: open in new tab if iframe fails
+                    window.open(src, '_blank')
+                  }}
+                />
               ) : viewer.type === 'image' ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={src} alt="" className="mx-auto max-h-[90vh] w-auto max-w-full object-contain rounded-2xl" />
+                <img src={src} alt="" className="max-h-[90vh] w-auto max-w-full object-contain rounded-2xl" />
               ) : (
-                <video
-                  src={src}
-                  className="mx-auto max-h-[90vh] w-auto max-w-full rounded-2xl"
-                  controls
-                  autoPlay
-                />
-              )}
-
-              {/* Close button */}
-              <button
-                type="button"
-                onClick={closeViewer}
-                aria-label="Close viewer"
-                className="absolute right-4 top-4 rounded-full bg-black/70 p-3 text-white hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors"
-              >
-                <XMarkIcon className="h-6 w-6" />
-              </button>
-
-              {/* Navigation arrows - only show for multiple items */}
-              {list.length > 1 && (
-                <div className={`absolute inset-x-0 ${viewer.type === 'video' ? 'bottom-20' : 'bottom-4'} flex justify-center pointer-events-none`}>
-                  <div className="inline-flex items-center gap-3 rounded-full bg-black/70 px-3 py-2 pointer-events-auto">
-                    <button
-                      type="button"
-                      onClick={prevViewer}
-                      aria-label="Previous"
-                      className="rounded-full p-2 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors"
-                    >
-                      <ChevronLeftIcon className="h-6 w-6" />
-                    </button>
-                    <span className="text-sm text-white font-medium px-2">
-                      {viewer.index + 1} / {list.length}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={nextViewer}
-                      aria-label="Next"
-                      className="rounded-full p-2 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors"
-                    >
-                      <ChevronRightIcon className="h-6 w-6" />
-                    </button>
-                  </div>
-                </div>
+                <CustomVideoPlayer src={src} />
               )}
             </div>
           </div>

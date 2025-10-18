@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stat, readFile } from 'fs/promises'
+import { stat } from 'fs/promises'
+import { createReadStream } from 'fs'
+import { Readable } from 'stream'
 import { resolve, extname, sep } from 'path'
 
 import { getOptionalUser } from '@/lib/serverAuth'
@@ -127,21 +129,83 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const data = await readFile(targetPath)
+    const { size: fileSize } = await stat(targetPath)
     const ext = extname(targetPath)
     const ct = contentTypeFromExt(ext)
 
-    const bufferArray = new Uint8Array(data)
-    const arrayBuffer = bufferArray.buffer.slice(bufferArray.byteOffset, bufferArray.byteOffset + bufferArray.byteLength)
+    const range = request.headers.get('range') || request.headers.get('Range')
 
-    return new NextResponse(arrayBuffer, {
+    if (range) {
+      const match = range.match(/bytes=(\d*)-(\d*)/)
+      if (!match) {
+        return new NextResponse(null, {
+          status: 416,
+          headers: {
+            'Content-Range': `bytes */${fileSize}`,
+          },
+        })
+      }
+
+      let start: number
+      let end: number
+
+      const startStr = match[1]
+      const endStr = match[2]
+      if (startStr === '' && endStr) {
+        // Suffix byte range: bytes=-N
+        const suffixLength = parseInt(endStr, 10)
+        if (isNaN(suffixLength)) {
+          return new NextResponse(null, { status: 416, headers: { 'Content-Range': `bytes */${fileSize}` } })
+        }
+        start = Math.max(0, fileSize - suffixLength)
+        end = fileSize - 1
+      } else {
+        start = parseInt(startStr, 10)
+        end = endStr ? parseInt(endStr, 10) : fileSize - 1
+      }
+
+      // Validate range
+      if (isNaN(start) || isNaN(end) || start < 0 || end < start || start >= fileSize) {
+        return new NextResponse(null, { status: 416, headers: { 'Content-Range': `bytes */${fileSize}` } })
+      }
+
+      const chunkSize = end - start + 1
+      const nodeStream = createReadStream(targetPath, { start, end })
+      const webStream = Readable.toWeb(nodeStream as any) as unknown as ReadableStream
+
+      return new NextResponse(webStream, {
+        status: 206,
+        headers: {
+          'Content-Type': ct,
+          'Content-Length': String(chunkSize),
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Disposition': `inline; filename="file${ext || ''}"`,
+          'Cache-Control': 'no-store',
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'SAMEORIGIN',
+          ...(ct === 'application/pdf' && {
+            'Content-Security-Policy': "frame-ancestors 'self'",
+            'X-Download-Options': 'noopen',
+          }),
+        },
+      })
+    }
+
+    // No range header: stream full file
+    const nodeStream = createReadStream(targetPath)
+    const webStream = Readable.toWeb(nodeStream as any) as unknown as ReadableStream
+
+    return new NextResponse(webStream, {
+      status: 200,
       headers: {
         'Content-Type': ct,
+        'Content-Length': String(fileSize),
+        'Accept-Ranges': 'bytes',
         'Content-Disposition': `inline; filename="file${ext || ''}"`,
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'SAMEORIGIN',
-        // Additional headers to prevent download managers from intercepting
         ...(ct === 'application/pdf' && {
           'Content-Security-Policy': "frame-ancestors 'self'",
           'X-Download-Options': 'noopen',
@@ -176,7 +240,14 @@ export async function HEAD(request: NextRequest) {
     const st = await stat(targetPath)
     const ext = extname(targetPath)
     const ct = contentTypeFromExt(ext)
-    return new NextResponse(null, { status: 200, headers: { 'content-type': ct, 'content-length': String(st.size) } })
+    return new NextResponse(null, { 
+      status: 200, 
+      headers: { 
+        'content-type': ct, 
+        'content-length': String(st.size),
+        'accept-ranges': 'bytes',
+      } 
+    })
   } catch {
     return new NextResponse(null, { status: 500 })
   }

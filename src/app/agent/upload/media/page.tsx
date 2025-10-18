@@ -53,7 +53,6 @@ export default function AgentUploadMediaPage() {
       // Clear all wizard data when leaving
       sessionStorage.removeItem('agent:uploadStep1')
       sessionStorage.removeItem('agent:uploadStep2')
-      sessionStorage.removeItem('agent:uploadStep3')
       sessionStorage.removeItem('agent:reviewDraft')
       sessionStorage.removeItem('agent:editorChanges')
     },
@@ -236,8 +235,8 @@ export default function AgentUploadMediaPage() {
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow }
   }, [viewer, closeViewer, nextViewer, prevViewer])
 
-  // Save media data and navigate to next step
-  const goTo3DStep = useCallback(() => {
+  // Save media data and navigate to review step
+  const goToReviewStep = useCallback(() => {
     // Validate that at least one image is uploaded
     if (images.length === 0) {
       setShowValidation(true)
@@ -258,6 +257,7 @@ export default function AgentUploadMediaPage() {
       }))
     }
     
+    // Save step 2 data
     const STORAGE_KEY = 'agent:uploadStep2'
     const step2Data = {
       images: processedImages,
@@ -269,7 +269,73 @@ export default function AgentUploadMediaPage() {
     } catch {
       /* ignore storage errors */
     }
-    router.push('/agent/upload/3d')
+
+    // Combine step 1 and step 2 data to create reviewDraft
+    try {
+      const step1Raw = sessionStorage.getItem('agent:uploadStep1')
+      if (!step1Raw) {
+        console.error('Step 1 data not found')
+        router.push('/agent/review')
+        return
+      }
+      
+      const step1Data = JSON.parse(step1Raw)
+      const { form, propertyType } = step1Data
+      
+      // Find cover image URL
+      const coverImageUrl = processedImages.find(img => img.isCover)?.url || processedImages[0]?.url || null
+      
+      // Create the reviewDraft by combining both steps
+      const reviewDraft = {
+        title: form.title || '',
+        subtitle: '', // Not used in current form
+        pricing: {
+          basePrice: form.basePrice || '',
+          currency: form.currency || 'ETB',
+        },
+        propertyType: propertyType || '',
+        location: `${form.address || ''}, ${form.subCity || ''}, ${form.city || ''}`.replace(/^,\s*|,\s*$/g, '').replace(/,\s*,/g, ','),
+        address: form.address || '',
+        city: form.city || '',
+        subCity: form.subCity || '',
+        specs: {
+          bedrooms: form.bedrooms || '0',
+          bathrooms: form.bathrooms || '1',
+          areaSqm: Number(form.areaSqm || 0),
+        },
+        description: form.description || '',
+        amenities: form.amenities || [],
+        features: form.features || [],
+        media: {
+          images: processedImages.map(img => img.url),
+          videos: videos.map(v => v.url),
+          floorPlans: floorPlans.map(fp => fp.url),
+          coverImage: coverImageUrl,
+        },
+        immersive: {
+          has3D: false,
+          glbPath: undefined,
+          ifcPath: undefined,
+          usdPath: undefined,
+          filePath: undefined,
+          fileName: undefined,
+          elementsCount: 0,
+          aiEnrichment: null,
+          topologyPath: undefined,
+          processedAt: undefined,
+          editorChanges: null,
+          unitId: undefined,
+          viewerLink: undefined,
+        },
+      }
+      
+      // Save the combined draft
+      sessionStorage.setItem('agent:reviewDraft', JSON.stringify(reviewDraft))
+    } catch (error) {
+      console.error('Error creating review draft:', error)
+    }
+    
+    router.push('/agent/review')
   }, [images, videos, floorPlans, router])
 
   // Go back to details step
@@ -286,7 +352,6 @@ export default function AgentUploadMediaPage() {
         // Clear all data and start fresh
         sessionStorage.removeItem('agent:uploadStep1')
         sessionStorage.removeItem('agent:uploadStep2')
-        sessionStorage.removeItem('agent:uploadStep3')
         sessionStorage.removeItem('agent:reviewDraft')
         sessionStorage.removeItem('agent:editorChanges')
         sessionStorage.removeItem('agent:published')
@@ -324,7 +389,7 @@ export default function AgentUploadMediaPage() {
                 </div>
                 <div className="ml-3 text-sm">
                   <p className={`font-medium ${step <= 2 ? 'text-primary' : 'text-muted'}`}>
-                    {step === 1 ? 'Property Details' : step === 2 ? 'Media Upload' : '3D Pipeline'}
+                    {step === 1 ? 'Property Details' : step === 2 ? 'Media Upload' : 'Review'}
                   </p>
                 </div>
                 {step < 3 && (
@@ -655,7 +720,7 @@ export default function AgentUploadMediaPage() {
           <button 
             type="button" 
             className="btn btn-primary"
-            onClick={goTo3DStep}
+            onClick={goToReviewStep}
           >
             Continue
           </button>

@@ -432,7 +432,7 @@ export default function AgentUploadDetailsPage() {
                 </div>
                 <div className="ml-3 text-sm">
                   <p className={`font-medium ${step === 1 ? 'text-primary' : 'text-muted'}`}>
-                    {step === 1 ? 'Property Details' : step === 2 ? 'Media Upload' : '3D Pipeline'}
+                    {step === 1 ? 'Property Details' : step === 2 ? 'Media Upload' : 'Review'}
                   </p>
                 </div>
                 {step < 3 && (
@@ -978,16 +978,20 @@ export default function AgentUploadDetailsPage() {
                         className="sr-only"
                         checked={checked}
                         onChange={() => toggleInArray('amenities', a)}
+                        style={{ 
+                          accentColor: 'transparent',
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          MozAppearance: 'none'
+                        }}
                       />
-                      <div className={`flex h-4 w-4 items-center justify-center rounded border transition-all duration-200 ${
+                      <div className={`flex h-4 w-4 items-center justify-center rounded-full border transition-all duration-200 ${
                         checked 
                           ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]' 
                           : 'border-[color:var(--surface-border)] bg-[color:var(--surface-1)]'
                       }`}>
                         {checked && (
-                          <svg className="h-2.5 w-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
+                          <span className="h-2.5 w-2.5 rounded-full bg-white" />
                         )}
                       </div>
                     </div>
@@ -1017,16 +1021,20 @@ export default function AgentUploadDetailsPage() {
                         className="sr-only"
                         checked={checked}
                         onChange={() => toggleInArray('features', f)}
+                        style={{ 
+                          accentColor: 'transparent',
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          MozAppearance: 'none'
+                        }}
                       />
-                      <div className={`flex h-4 w-4 items-center justify-center rounded border transition-all duration-200 ${
+                      <div className={`flex h-4 w-4 items-center justify-center rounded-full border transition-all duration-200 ${
                         checked 
                           ? 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)]' 
                           : 'border-[color:var(--surface-border)] bg-[color:var(--surface-1)]'
                       }`}>
                         {checked && (
-                          <svg className="h-2.5 w-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
+                          <span className="h-2.5 w-2.5 rounded-full bg-white" />
                         )}
                       </div>
                     </div>

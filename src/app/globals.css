@@ -423,6 +423,31 @@ a {
   border-color: var(--brand-600-55);
 }
 
+/* Custom checkbox styling to override browser defaults */
+input[type="checkbox"] {
+  accent-color: var(--brand-500) !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+}
+
+/* Ensure hidden checkboxes don't interfere with custom styling */
+.sr-only input[type="checkbox"] {
+  accent-color: transparent !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+}
+
+/* Additional checkbox overrides for cross-browser compatibility */
+input[type="checkbox"]:checked {
+  accent-color: var(--brand-500) !important;
+}
+
+input[type="checkbox"]:focus {
+  accent-color: var(--brand-500) !important;
+}
+
 .ring-brand {
   --tw-ring-color: var(--brand-500-45);
 }

@@ -28,7 +28,7 @@ export default function Footer() {
               EstatePro
             </div>
             <p className="text-sm text-secondary">
-              Immersive real estate experiences for agents and buyers. Upload CAD, generate 3D assets, and publish premium listings.
+              Modern real estate platform for agents and buyers. Upload property details and media to create premium listings.
             </p>
             <div className="text-xs text-disabled">
               © {new Date().getFullYear()} EstatePro. All rights reserved.

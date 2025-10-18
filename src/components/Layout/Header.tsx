@@ -256,7 +256,7 @@ export default function Header() {
             </div>
             <div className="flex flex-col">
               <span className="text-sm uppercase tracking-[0.3em] text-muted">Fitit</span>
-              <span className="text-sm font-semibold text-primary">3D Real Estate</span>
+              <span className="text-sm font-semibold text-primary">Real Estate</span>
             </div>
           </Link>
 

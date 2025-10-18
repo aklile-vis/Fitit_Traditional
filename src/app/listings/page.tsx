@@ -57,7 +57,6 @@ type Listing = {
   basePrice: number
   currency?: string | null
   coverImage?: string | null
-  has3D?: boolean
   amenities?: string | null
   features?: string | null
   propertyType?: string | null // Add property type field
@@ -72,7 +71,6 @@ type Filters = {
   bedrooms: string[]
   bathrooms: string[]
   propertyType: string[]
-  has3D: string
   city: string
 }
 
@@ -120,7 +118,6 @@ export default function ListingsIndexPage() {
     bedrooms: [],
     bathrooms: [],
     propertyType: [],
-    has3D: '',
     city: ''
   })
   const [sortBy, setSortBy] = useState<SortOption>('newest')
@@ -386,7 +383,6 @@ export default function ListingsIndexPage() {
       bedrooms: [],
       bathrooms: [],
       propertyType: [],
-      has3D: '',
       city: ''
     })
   }

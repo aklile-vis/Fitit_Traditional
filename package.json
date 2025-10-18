@@ -1,14 +1,12 @@
 {
   "name": "modern-real-estate",
   "version": "1.0.0",
-  "description": "A cutting-edge real estate platform featuring immersive 3D property customization",
+  "description": "A modern real estate platform for property listings and management",
   "private": true,
   "keywords": [
     "real-estate",
-    "3d",
-    "customization",
+    "property-listings",
     "nextjs",
-    "threejs",
     "react"
   ],
   "author": "Modern Real Estate Team",
@@ -36,21 +34,14 @@
     "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",
     "@prisma/client": "^6.16.0",
-    "@react-three/drei": "^10.7.6",
-    "@react-three/fiber": "^9.3.0",
-    "@react-three/postprocessing": "^3.0.4",
-    "@react-three/xr": "^6.6.26",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/three": "^0.180.0",
     "@types/uuid": "^10.0.0",
     "bcryptjs": "^3.0.2",
     "better-sqlite3": "^12.4.1",
     "clsx": "^2.1.1",
-    "dxf-parser": "^1.1.2",
     "framer-motion": "^12.23.12",
     "jsonwebtoken": "^9.0.2",
     "jszip": "^3.10.1",
-    "leva": "^0.10.0",
     "lucide-react": "^0.542.0",
     "multer": "^2.0.2",
     "next": "15.5.2",
@@ -60,13 +51,9 @@
     "react-dom": "19.1.0",
     "sqlite3": "^5.1.7",
     "tailwind-merge": "^3.3.1",
-    "three": "^0.180.0",
-    "uuid": "^13.0.0",
-    "web-ifc": "^0.0.44"
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "@babylonjs/core": "^7.36.0",
-    "@babylonjs/loaders": "^7.36.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.19",
@@ -79,7 +66,6 @@
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "postprocessing": "6.37.8",
     "@radix-ui/react-portal": "1.1.9",
     "@radix-ui/react-tooltip": "1.2.8",
     "@radix-ui/react-popper": "1.2.8",

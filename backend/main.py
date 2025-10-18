@@ -12,6 +12,7 @@ import sys
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 from backend.robust_processor import RobustProcessor
+from backend.dxf_parser import DXFParser
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
