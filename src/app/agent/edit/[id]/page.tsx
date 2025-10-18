@@ -88,6 +88,8 @@ export default function EditListingRedirectPage() {
 
         // Persist to sessionStorage for the upload wizard to restore
         try {
+          // Clear the published flag to prevent data clearing
+          sessionStorage.removeItem('agent:published')
           sessionStorage.setItem('agent:uploadStep1', JSON.stringify(step1))
           sessionStorage.setItem('agent:uploadStep2', JSON.stringify(step2))
           sessionStorage.setItem('agent:editingListingId', String(id))

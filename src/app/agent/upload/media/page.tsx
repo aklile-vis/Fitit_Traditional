@@ -617,8 +617,8 @@ export default function AgentUploadMediaPage() {
               {floorPlans.length > 0 && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-3">
-                    {floorPlans.map((fp, idx) => {
-                        const isPdf = fp.file?.type === 'application/pdf' || fp.url.includes('.pdf')
+                    {floorPlans.filter(fp => fp.url).map((fp, idx) => {
+                        const isPdf = fp.file?.type === 'application/pdf' || (fp.url && fp.url.includes('.pdf'))
                         const isImage = !isPdf
 
                         const handleFloorPlanClick = () => {
@@ -743,7 +743,7 @@ export default function AgentUploadMediaPage() {
           src = current ? toAbsolute(current.url) : ''
         }
 
-        const isPdf = current && (current.file?.type === 'application/pdf' || current.url.includes('.pdf'))
+        const isPdf = current && (current.file?.type === 'application/pdf' || (current.url && current.url.includes('.pdf')))
 
         return (
           <div

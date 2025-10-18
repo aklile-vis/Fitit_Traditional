@@ -8,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import ListingSuccessModal from '@/components/ListingSuccessModal'
 import {
   CheckBadgeIcon,
-  ClipboardDocumentListIcon,
   ExclamationTriangleIcon,
   MapPinIcon,
   PhotoIcon,
@@ -309,9 +308,9 @@ export default function AgentListingReviewPage() {
   const closeViewer = useCallback(() => setViewer(null), [])
   
   // Create combined media list for unified navigation
-  const getCombinedMedia = useCallback(() => {
+  const getCombinedMedia = useCallback((): Array<{ type: 'image' | 'video'; index: number; url: string }> => {
     if (!draft?.media) return []
-    const combined = []
+    const combined: Array<{ type: 'image' | 'video'; index: number; url: string }> = []
     
     // Add all images first
     draft.media.images.forEach((img: string, index: number) => {
@@ -443,9 +442,9 @@ export default function AgentListingReviewPage() {
         address: location.split(', ')[0],
         city: location.split(', ')[2] || location.split(', ')[1], // Use the last part as city
         subCity: location.split(', ')[1] || draft?.subCity || '', // Use the middle part as subCity
-        images: media.images,
-        videos: media.videos.map((v: any) => v.url),
-        floorPlans: media.floorPlans,
+        images: media.images.filter((url: string) => url && url.trim() !== ''),
+        videos: media.videos.map((v: any) => typeof v === 'string' ? v : v?.url).filter((url: string) => url && url.trim() !== ''),
+        floorPlans: media.floorPlans.map((fp: any) => typeof fp === 'string' ? fp : fp?.url).filter((url: string) => url && url.trim() !== ''),
         coverImage: media.coverImage,
         propertyType: subtype, // Send the actual property type (e.g., "Apartment", "Villa")
         bedrooms: specs.bedrooms,
@@ -475,7 +474,9 @@ export default function AgentListingReviewPage() {
       let response: Response
       let editingId: string | null = null
       try { editingId = sessionStorage.getItem('agent:editingListingId') } catch {}
+      
       if (editingId) {
+        // Try to update existing listing
         response = await fetch(`/api/listings/${encodeURIComponent(editingId)}`, {
           method: 'PUT',
           headers: {
@@ -484,7 +485,26 @@ export default function AgentListingReviewPage() {
           },
           body: JSON.stringify(payload),
         })
+        
+        // If update fails because listing doesn't exist, fallback to creating new listing
+        if (!response.ok) {
+          const errorData = await response.json()
+          if (errorData.error && errorData.error.includes('No record was found')) {
+            console.warn('Listing not found for update, creating new listing instead')
+            // Clear the invalid editing ID and create new listing
+            sessionStorage.removeItem('agent:editingListingId')
+            response = await fetch('/api/listings', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify(payload),
+            })
+          }
+        }
       } else {
+        // Create new listing
         response = await fetch('/api/listings', {
           method: 'POST',
           headers: {
@@ -541,11 +561,11 @@ export default function AgentListingReviewPage() {
                       : 'border-[color:var(--accent-500)] bg-[color:var(--accent-500)] text-white'
                   }`}
                 >
-                  {step === 3 ? <ClipboardDocumentListIcon className="h-5 w-5" /> : step}
+                  {step}
                 </div>
                 <div className="ml-3 text-sm">
                   <p className={`font-medium ${step <= 3 ? 'text-primary' : 'text-muted'}`}>
-                    {step === 1 ? 'Property Details' : step === 2 ? 'Media Upload' : 'Review & Preview'}
+                    {step === 1 ? 'Property Details' : step === 2 ? 'Media Upload' : 'Review'}
                   </p>
                 </div>
                 {step < 3 && (
@@ -560,33 +580,17 @@ export default function AgentListingReviewPage() {
       {/* Review Header */}
       <div className="border-b border-[color:var(--surface-border)] bg-[color:var(--surface-1)]">
         <div className="container py-8">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--accent-500)] bg-[color:var(--accent-500)]/10 px-4 py-1.5 text-xs uppercase tracking-[0.35em] text-[color:var(--accent-500)]">
-                <ClipboardDocumentListIcon className="h-4 w-4" /> Step 3 of 3
+          
+            <header className="space-y-3 text-center">
+              <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] px-4 py-2 text-xs uppercase tracking-[0.4em] text-muted">
+                <PhotoIcon className="h-4 w-4" /> Step 3: Review
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-primary">Final Review & Preview</h1>
-                <p className="mt-2 max-w-2xl text-lg text-secondary">
-                  This is exactly what buyers will see when browsing your property listing. Review all details before publishing.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Link href="/agent/upload/media?restore=1" className="btn btn-secondary">
-                Back to Edit
-              </Link>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
-                onClick={publishListing}
-                disabled={isPublishing}
-              >
-                {isPublishing ? 'Publishing...' : 'Publish Listing'}
-              </button>
-            </div>
-          </div>
+              <h2 className="headline text-3xl">Final Review & Preview</h2>
+              <p className="mx-auto max-w-2xl text-sm text-muted">
+                This is exactly what buyers will see when browsing your property listing. Review all details before publishing.
+              </p>
+             </header>
+          
         </div>
       </div>
 
@@ -717,10 +721,12 @@ export default function AgentListingReviewPage() {
 
       {/* Main Content */}
       <div className="container py-8">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
-          {/* Left Column - Property Details */}
-          <div className="space-y-8">
-            {/* Title & Price */}
+        <div className="space-y-8">
+          {/* Top Section - Title, Stats, Description, Amenities */}
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
+            {/* Left Column - Property Details */}
+            <div className="space-y-8">
+              {/* Title & Price */}
             <section className="space-y-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
@@ -821,100 +827,169 @@ export default function AgentListingReviewPage() {
                 </div>
               )}
             </section>
+          </div>
 
-            {/* Photo Gallery */}
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-primary">Property Gallery</h2>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {media.images.map((path: string, index: number) => {
-                  const imageUrl = path.startsWith('http') 
-                    ? path 
-                    : `/api/files/binary?path=${encodeURIComponent(path)}`
-                  const isCoverImage = media.coverImage === path
-                  
-                  return (
-                    <figure
-                      key={path}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setViewer({ type: 'image', index })}
-                      onKeyDown={(e) => onCardKeyDown(e, () => setViewer({ type: 'image', index }))}
-                      className="group relative overflow-hidden rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-500)]"
-                    >
-                      <img
-                        src={imageUrl}
-                        alt={`Property photo ${index + 1}`}
-                        className="h-56 w-full object-cover transition duration-300 group-hover:scale-105"
-                      />
-                      {isCoverImage && (
-                        <div className="absolute left-2 top-2 rounded-full bg-[color:var(--accent-500)] px-2 py-1 text-xs font-medium text-white">
-                          Cover Photo
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
-                    </figure>
-                  )
-                })}
-              </div>
-            </section>
+          {/* Right Column - Contact Card (Sticky) */}
+          <aside className="space-y-6">
+            <div className="sticky top-20 space-y-6">
+              {/* Contact/Inquiry Card */}
+              <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6 shadow-lg">
+                <h3 className="text-xl font-semibold text-primary mb-4">Interested in this property?</h3>
+                <div className="space-y-4">
+                  <button className="btn btn-primary w-full justify-center text-base">
+                    Schedule a Viewing
+                  </button>
+                  <button className="btn btn-secondary w-full justify-center text-base">
+                    Contact Agent
+                  </button>
+                  <button className="btn btn-outline w-full justify-center text-base">
+                    Request Info
+                  </button>
+                </div>
+                
+                <div className="mt-6 pt-6 border-t border-[color:var(--surface-border)] space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted">Property ID</span>
+                    <span className="font-medium text-primary">EST-{Math.floor(Math.random() * 100000)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted">Listed</span>
+                    <span className="font-medium text-primary">Just now</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted">Status</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--accent-500)]/10 px-2 py-1 text-xs font-medium text-[color:var(--accent-500)]">
+                      <CheckBadgeIcon className="h-3 w-3" />
+                      Available
+                    </span>
+                  </div>
+                </div>
+              </section>
 
-            {/* Video Tours */}
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold text-primary">Video Tours ({media.videos?.length || 0})</h2>
-              {media.videos?.length > 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {media.videos.map((video: any, index: number) => {
-                    // Handle both string URLs and objects with url property
-                    const videoUrl = typeof video === 'string' ? video : video?.url
-                    
-                    // Skip if no valid URL
-                    if (!videoUrl || typeof videoUrl !== 'string') {
-                      console.warn('Invalid video data:', video)
-                      return null
-                    }
-                    
-                    
-                    return (
-                    <figure
-                      key={`video-${index}-${video}`}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setViewer({ type: 'video', index })}
-                      onKeyDown={(e) => onCardKeyDown(e, () => setViewer({ type: 'video', index }))}
-                      className="group relative overflow-hidden rounded-xl border border-[color:var(--surface-border)] bg-gray-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-500)] shadow-md hover:shadow-lg transition-all duration-300"
-                    >
-                      <video
-                        src={toAbsolute(videoUrl)}
-                        preload="metadata"
-                        muted
-                        playsInline
-                        className="h-64 w-full object-cover"
-                        controls={false}
-                        onLoadedMetadata={(e) => {
-                          // Seek to 1 second to get a better thumbnail
-                          e.currentTarget.currentTime = 1
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}) }}
-                        onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 1 }}
-                      />
-                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity group-hover:bg-black/10">
-                        <div className="bg-black/70 backdrop-blur-sm rounded-full p-4">
-                          <PlayCircleIcon className="h-14 w-14 text-white drop-shadow-lg" />
-                        </div>
-                      </div>
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                        <p className="text-sm font-semibold text-white">Video Tour</p>
-                      </div>
-                    </figure>
-                    )
-                  }).filter(Boolean)}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted">
-                  <p>No videos uploaded yet</p>
-                </div>
-              )}
-            </section>
+              {/* Quick Stats */}
+              <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6">
+                <h3 className="font-semibold text-primary mb-4">Property Stats</h3>
+                <dl className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Total Media</dt>
+                    <dd className="font-medium text-primary">{media.images.length + media.videos.length} files</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Floor Plans</dt>
+                    <dd className="font-medium text-primary">{media.floorPlans.length} available</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Type</dt>
+                    <dd className="font-medium text-primary">{propertyType}</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Location</dt>
+                    <dd className="font-medium text-primary">{draft.city}</dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
+          </aside>
+        </div>
+
+        {/* Property Gallery - Full Width */}
+        <section className="space-y-4">
+          <h2 className="text-2xl font-semibold text-primary">Property Gallery</h2>
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {media.images.map((path: string, index: number) => {
+              const imageUrl = path.startsWith('http') 
+                ? path 
+                : `/api/files/binary?path=${encodeURIComponent(path)}`
+              const isCoverImage = media.coverImage === path
+              
+              return (
+                <figure
+                  key={path}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setViewer({ type: 'image', index })}
+                  onKeyDown={(e) => onCardKeyDown(e, () => setViewer({ type: 'image', index }))}
+                  className="group relative overflow-hidden rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-500)]"
+                >
+                  <img
+                    src={imageUrl}
+                    alt={`Property photo ${index + 1}`}
+                    className="h-56 w-full object-cover transition duration-300 group-hover:scale-105"
+                  />
+                  {isCoverImage && (
+                    <div className="absolute left-2 top-2 rounded-full bg-[color:var(--accent-500)] px-2 py-1 text-xs font-medium text-white">
+                      Cover Photo
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
+                </figure>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* Video Tours - Full Width */}
+        <section className="space-y-4">
+          <h2 className="text-2xl font-semibold text-primary">Video Tours ({media.videos?.length || 0})</h2>
+          {media.videos?.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {media.videos.map((video: any, index: number) => {
+                // Handle both string URLs and objects with url property
+                const videoUrl = typeof video === 'string' ? video : video?.url
+                
+                // Skip if no valid URL
+                if (!videoUrl || typeof videoUrl !== 'string') {
+                  console.warn('Invalid video data:', video)
+                  return null
+                }
+                
+                
+                return (
+                <figure
+                  key={`video-${index}-${video}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setViewer({ type: 'video', index })}
+                  onKeyDown={(e) => onCardKeyDown(e, () => setViewer({ type: 'video', index }))}
+                  className="group relative overflow-hidden rounded-xl border border-[color:var(--surface-border)] bg-gray-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-500)] shadow-md hover:shadow-lg transition-all duration-300"
+                >
+                  <video
+                    src={toAbsolute(videoUrl)}
+                    preload="metadata"
+                    muted
+                    playsInline
+                    className="h-64 w-full object-cover"
+                    controls={false}
+                    onLoadedMetadata={(e) => {
+                      // Seek to 1 second to get a better thumbnail
+                      e.currentTarget.currentTime = 1
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}) }}
+                    onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 1 }}
+                  />
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity group-hover:bg-black/10">
+                    <div className="bg-black/70 backdrop-blur-sm rounded-full p-4">
+                      <PlayCircleIcon className="h-14 w-14 text-white drop-shadow-lg" />
+                    </div>
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+                    <p className="text-sm font-semibold text-white">Video Tour</p>
+                  </div>
+                </figure>
+                )
+              }).filter(Boolean)}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted">
+              <p>No videos uploaded yet</p>
+            </div>
+          )}
+        </section>
+
+        {/* Bottom Section - Floor Plans */}
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
+          {/* Left Column - Floor Plans */}
+          <div className="space-y-8">
 
             {/* Floor Plans */}
             {media.floorPlans.length > 0 && (
@@ -1007,68 +1082,24 @@ export default function AgentListingReviewPage() {
             )}
 
           </div>
+        </div>
+        </div>
+      </div>
 
-          {/* Right Column - Contact Card (Sticky) */}
-          <aside className="space-y-6">
-            <div className="sticky top-20 space-y-6">
-              {/* Contact/Inquiry Card */}
-              <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6 shadow-lg">
-                <h3 className="text-xl font-semibold text-primary mb-4">Interested in this property?</h3>
-                <div className="space-y-4">
-                  <button className="btn btn-primary w-full justify-center text-base">
-                    Schedule a Viewing
-                  </button>
-                  <button className="btn btn-secondary w-full justify-center text-base">
-                    Contact Agent
-                  </button>
-                  <button className="btn btn-outline w-full justify-center text-base">
-                    Request Info
-                  </button>
-                </div>
-                
-                <div className="mt-6 pt-6 border-t border-[color:var(--surface-border)] space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">Property ID</span>
-                    <span className="font-medium text-primary">EST-{Math.floor(Math.random() * 100000)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">Listed</span>
-                    <span className="font-medium text-primary">Just now</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">Status</span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--accent-500)]/10 px-2 py-1 text-xs font-medium text-[color:var(--accent-500)]">
-                      <CheckBadgeIcon className="h-3 w-3" />
-                      Available
-                    </span>
-                  </div>
-                </div>
-              </section>
-
-              {/* Quick Stats */}
-              <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6">
-                <h3 className="font-semibold text-primary mb-4">Property Stats</h3>
-                <dl className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted">Total Media</dt>
-                    <dd className="font-medium text-primary">{media.images.length + media.videos.length} files</dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted">Floor Plans</dt>
-                    <dd className="font-medium text-primary">{media.floorPlans.length} available</dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted">Type</dt>
-                    <dd className="font-medium text-primary">{propertyType}</dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted">Location</dt>
-                    <dd className="font-medium text-primary">{draft.city}</dd>
-                  </div>
-                </dl>
-              </section>
-            </div>
-          </aside>
+      {/* Step 3 Navigation */}
+      <div className="container py-8">
+        <div className="flex justify-between">
+          <Link href="/agent/upload/media?restore=1" className="btn btn-secondary">
+            Back to Edit
+          </Link>
+          <button 
+            type="button" 
+            className="btn btn-primary" 
+            onClick={publishListing}
+            disabled={isPublishing}
+          >
+            {isPublishing ? 'Publishing...' : 'Publish Listing'}
+          </button>
         </div>
       </div>
 
