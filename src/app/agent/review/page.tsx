@@ -307,18 +307,53 @@ export default function AgentListingReviewPage() {
 
   // Media viewer functions - defined before early return to maintain hook order
   const closeViewer = useCallback(() => setViewer(null), [])
+  
+  // Create combined media list for unified navigation
+  const getCombinedMedia = useCallback(() => {
+    if (!draft?.media) return []
+    const combined = []
+    
+    // Add all images first
+    draft.media.images.forEach((img: string, index: number) => {
+      combined.push({ type: 'image', index, url: img })
+    })
+    
+    // Add all videos after images
+    draft.media.videos.forEach((video: any, index: number) => {
+      const videoUrl = typeof video === 'string' ? video : video?.url
+      if (videoUrl) {
+        combined.push({ type: 'video', index, url: videoUrl })
+      }
+    })
+    
+    return combined
+  }, [draft?.media])
+  
   const nextViewer = useCallback(() => {
-    if (!viewer || !draft?.media) return
-    const list = viewer.type === 'image' ? draft.media.images : draft.media.videos
-    if (!list?.length) return
-    setViewer({ type: viewer.type, index: (viewer.index + 1) % list.length })
-  }, [viewer, draft?.media?.images, draft?.media?.videos])
+    if (!viewer) return
+    const combined = getCombinedMedia()
+    if (!combined.length) return
+    const currentIndex = combined.findIndex(item => 
+      item.type === viewer.type && item.index === viewer.index
+    )
+    if (currentIndex === -1) return
+    const nextIndex = (currentIndex + 1) % combined.length
+    const nextItem = combined[nextIndex]
+    setViewer({ type: nextItem.type, index: nextItem.index })
+  }, [viewer, getCombinedMedia])
+  
   const prevViewer = useCallback(() => {
-    if (!viewer || !draft?.media) return
-    const list = viewer.type === 'image' ? draft.media.images : draft.media.videos
-    if (!list?.length) return
-    setViewer({ type: viewer.type, index: (viewer.index - 1 + list.length) % list.length })
-  }, [viewer, draft?.media?.images, draft?.media?.videos])
+    if (!viewer) return
+    const combined = getCombinedMedia()
+    if (!combined.length) return
+    const currentIndex = combined.findIndex(item => 
+      item.type === viewer.type && item.index === viewer.index
+    )
+    if (currentIndex === -1) return
+    const prevIndex = (currentIndex - 1 + combined.length) % combined.length
+    const prevItem = combined[prevIndex]
+    setViewer({ type: prevItem.type, index: prevItem.index })
+  }, [viewer, getCombinedMedia])
 
   // Keyboard + scroll lock while viewer is open - defined before early return
   useEffect(() => {
@@ -539,7 +574,7 @@ export default function AgentListingReviewPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Link href="/agent/upload?restore=1" className="btn btn-secondary">
+              <Link href="/agent/upload/media?restore=1" className="btn btn-secondary">
                 Back to Edit
               </Link>
               <button 
@@ -556,11 +591,11 @@ export default function AgentListingReviewPage() {
       </div>
 
       {/* Hero Media Grid Section */}
-      <div className="container py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4 rounded-2xl overflow-hidden">
+      <div className="container py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 rounded-2xl overflow-hidden">
           {/* Main Large Image */}
           <div 
-            className="relative aspect-[16/10] lg:aspect-auto lg:min-h-[600px] cursor-pointer group overflow-hidden rounded-2xl"
+            className="relative aspect-[16/9] lg:aspect-auto lg:min-h-[600px] cursor-pointer group overflow-hidden rounded-2xl"
             onClick={() => setViewer({ type: 'image', index: 0 })}
           >
             <img
@@ -586,28 +621,36 @@ export default function AgentListingReviewPage() {
           </div>
 
           {/* Thumbnail Grid (Right Side - Hidden on Mobile) */}
-          <div className="hidden lg:grid grid-rows-3 gap-4">
-            {[...media.images.slice(1, 4), ...media.videos.slice(0, Math.max(0, 3 - media.images.slice(1, 4).length))].slice(0, 3).map((item, idx) => {
-              const isVideo = typeof item === 'object' && item.url
-              const src = isVideo ? toAbsolute(item.url) : toAbsolute(item as string)
-              const actualIndex = isVideo ? media.images.length + idx : idx + 1
+          <div className="hidden lg:grid grid-rows-3 gap-3 h-[600px]">
+            {(() => {
+              const imageThumbs = media.images.slice(1, 4)
+              const videoThumbs = media.videos.slice(0, Math.max(0, 3 - imageThumbs.length))
+              const tiles = [...imageThumbs, ...videoThumbs].slice(0, 3)
               const totalMedia = media.images.length + media.videos.length
-              const isLast = idx === 2 && totalMedia > 4
-              
-              return (
-                <div
-                  key={idx}
-                  className="relative aspect-[4/3] cursor-pointer group overflow-hidden rounded-xl"
-                  onClick={() => {
-                    if (isVideo) {
-                      setViewer({ type: 'video', index: media.videos.findIndex((v: any) => v.url === item.url) })
-                    } else {
-                      setViewer({ type: 'image', index: actualIndex })
-                    }
-                  }}
-                >
-                  {isVideo ? (
-                    <>
+
+              return tiles.map((item, idx) => {
+                const isVideoTile = idx >= imageThumbs.length
+
+                if (isVideoTile) {
+                  const videoUrl = typeof item === 'string' ? item : (item as any)?.url
+                  if (!videoUrl || typeof videoUrl !== 'string') {
+                    console.warn('Skipping invalid video item in hero grid:', item)
+                    return null
+                  }
+                  const src = toAbsolute(videoUrl)
+                  const videoIndex = media.videos.findIndex((v: any) => (typeof v === 'string' ? v === videoUrl : v?.url === videoUrl))
+                  if (videoIndex < 0) {
+                    console.warn('Video not found in media.videos list:', videoUrl)
+                    return null
+                  }
+                  const isLast = idx === 2 && totalMedia > 4
+
+                  return (
+                    <div
+                      key={`vid-${idx}-${videoIndex}`}
+                      className="relative h-full w-full cursor-pointer group overflow-hidden rounded-xl"
+                      onClick={() => setViewer({ type: 'video', index: videoIndex })}
+                    >
                       <video
                         src={src}
                         className="w-full h-full object-cover"
@@ -617,24 +660,57 @@ export default function AgentListingReviewPage() {
                       <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                         <PlayCircleIcon className="h-12 w-12 text-white" />
                       </div>
-                    </>
-                  ) : (
+
+                      {isLast && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                          <span className="text-3xl font-bold text-white">+{totalMedia - 4}</span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+
+                // Image tile
+                const imageUrl = item as string
+                if (!imageUrl || typeof imageUrl !== 'string') {
+                  console.warn('Skipping invalid image item in hero grid:', item)
+                  return null
+                }
+                const src = toAbsolute(imageUrl)
+                const imageIndex = media.images.indexOf(imageUrl)
+                const isLast = idx === 2 && totalMedia > 4
+
+                return (
+                  <div
+                    key={`img-${idx}-${imageIndex}`}
+                    className="relative h-full w-full cursor-pointer group overflow-hidden rounded-xl"
+                    onClick={() => setViewer({ type: 'image', index: imageIndex >= 0 ? imageIndex : idx + 1 })}
+                  >
                     <img
                       src={src}
                       alt={`Thumbnail ${idx + 1}`}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                     />
-                  )}
-                  
-                  {/* "+X more" Overlay */}
-                  {isLast && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-                      <span className="text-3xl font-bold text-white">+{totalMedia - 4}</span>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+
+                    {/* Image counter on bottom right image */}
+                    {idx === 2 && (
+                      <div className="absolute bottom-2 right-2">
+                        <button className="flex items-center gap-1 bg-gray-800/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-white hover:bg-gray-700/90 transition-colors">
+                          <PhotoIcon className="h-4 w-4" />
+                          <span className="text-sm font-medium">{totalMedia}</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {isLast && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                        <span className="text-3xl font-bold text-white">+{totalMedia - 4}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              }).filter(Boolean)
+            })()}
           </div>
         </div>
       </div>
@@ -783,9 +859,9 @@ export default function AgentListingReviewPage() {
             </section>
 
             {/* Video Tours */}
-            {media.videos.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-2xl font-semibold text-primary">Video Tours ({media.videos.length})</h2>
+            <section className="space-y-4">
+              <h2 className="text-2xl font-semibold text-primary">Video Tours ({media.videos?.length || 0})</h2>
+              {media.videos?.length > 0 ? (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {media.videos.map((video: any, index: number) => {
                     // Handle both string URLs and objects with url property
@@ -797,7 +873,6 @@ export default function AgentListingReviewPage() {
                       return null
                     }
                     
-                    console.log('Video URL:', toAbsolute(videoUrl))
                     
                     return (
                     <figure
@@ -810,19 +885,17 @@ export default function AgentListingReviewPage() {
                     >
                       <video
                         src={toAbsolute(videoUrl)}
-                        preload="auto"
+                        preload="metadata"
                         muted
                         playsInline
                         className="h-64 w-full object-cover"
                         controls={false}
-                        poster=""
-                        onLoadStart={() => console.log('Video loading started:', videoUrl)}
-                        onLoadedData={() => console.log('Video data loaded:', videoUrl)}
-                        onLoadedMetadata={() => console.log('Video metadata loaded:', videoUrl)}
-                        onCanPlay={() => console.log('Video can play:', videoUrl)}
-                        onError={(e) => console.error('Video error:', e, videoUrl)}
+                        onLoadedMetadata={(e) => {
+                          // Seek to 1 second to get a better thumbnail
+                          e.currentTarget.currentTime = 1
+                        }}
                         onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}) }}
-                        onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0 }}
+                        onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 1 }}
                       />
                       <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity group-hover:bg-black/10">
                         <div className="bg-black/70 backdrop-blur-sm rounded-full p-4">
@@ -836,8 +909,12 @@ export default function AgentListingReviewPage() {
                     )
                   }).filter(Boolean)}
                 </div>
-              </section>
-            )}
+              ) : (
+                <div className="text-center py-8 text-muted">
+                  <p>No videos uploaded yet</p>
+                </div>
+              )}
+            </section>
 
             {/* Floor Plans */}
             {media.floorPlans.length > 0 && (
@@ -997,24 +1074,39 @@ export default function AgentListingReviewPage() {
 
       {/* Media viewer modal (minimal, with arrows) */}
       {viewer && (() => {
-        let list, current, src
+        let list, current, src, currentPosition, totalCount
         
         if (viewer.isFloorPlan) {
           // Handle floor plan images and PDFs
           list = media.floorPlans
           current = media.floorPlans[viewer.index]
           src = current ? toAbsolute(current.url) : ''
+          currentPosition = viewer.index + 1
+          totalCount = list.length
         } else {
-          // Handle regular images and videos
-          list = viewer.type === 'image' ? media.images : media.videos
-          current = list[viewer.index]
+          // Handle combined images and videos
+          const combined = getCombinedMedia()
+          const currentIndex = combined.findIndex(item => 
+            item.type === viewer.type && item.index === viewer.index
+          )
           
-          // Handle both string URLs and objects with url property for videos
-          if (viewer.type === 'video') {
-            const videoUrl = typeof current === 'string' ? current : current?.url
-            src = toAbsolute(videoUrl)
-          } else {
+          if (currentIndex === -1) {
+            console.error('Current viewer item not found in combined media')
+            return null
+          }
+          
+          const currentItem = combined[currentIndex]
+          currentPosition = currentIndex + 1
+          totalCount = combined.length
+          
+          // Get the actual media item
+          if (currentItem.type === 'image') {
+            current = media.images[currentItem.index]
             src = toAbsolute(current as string)
+          } else {
+            current = media.videos[currentItem.index]
+            const videoUrl = typeof current === 'string' ? current : current?.url
+            src = videoUrl ? toAbsolute(videoUrl) : ''
           }
         }
 
@@ -1022,6 +1114,12 @@ export default function AgentListingReviewPage() {
           (typeof current === 'string' && current.includes('.pdf')) ||
           (typeof current === 'object' && current.url && current.url.includes('.pdf'))
         )
+
+        // Don't render if no valid source
+        if (!src) {
+          console.error('No valid source for viewer:', { viewer, current, src })
+          return null
+        }
 
         return (
           <div
@@ -1041,7 +1139,7 @@ export default function AgentListingReviewPage() {
             </button>
 
             {/* Navigation arrows - fixed to bottom of screen */}
-            {list.length > 1 && (
+            {totalCount > 1 && (
               <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
                 <div className="inline-flex items-center gap-3 rounded-full bg-black/90 backdrop-blur-sm border border-white/20 px-4 py-3 pointer-events-auto shadow-lg">
                   <button
@@ -1053,7 +1151,7 @@ export default function AgentListingReviewPage() {
                     <ChevronLeftIcon className="h-6 w-6" />
                   </button>
                   <span className="text-sm text-white font-semibold px-3 py-1 bg-white/10 rounded-full">
-                    {viewer.index + 1} / {list.length}
+                    {currentPosition} / {totalCount}
                   </span>
                   <button
                     type="button"
@@ -1149,4 +1247,3 @@ export default function AgentListingReviewPage() {
     </div>
   )
 }
-
