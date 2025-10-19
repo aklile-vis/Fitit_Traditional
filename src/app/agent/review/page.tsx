@@ -374,7 +374,7 @@ export default function AgentListingReviewPage() {
 
   // Router and auth hooks - defined before early return
   const router = useRouter()
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const [isPublishing, setIsPublishing] = useState(false)
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -754,10 +754,9 @@ export default function AgentListingReviewPage() {
             <section className="grid grid-cols-3 gap-4 rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6">
               <div className="space-y-2 text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10">
-                  <svg className="h-6 w-6 text-[color:var(--accent-500)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6h18M3 6v12a2 2 0 002 2h14a2 2 0 002-2V6M3 6V4a2 2 0 012-2h14a2 2 0 012 2v2M7 8h10M7 8v8M17 8v8M9 10h6M9 14h6" />
-                    <circle cx="12" cy="10" r="1" fill="currentColor" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 10h2" />
+                  <svg className="h-6 w-6 text-[color:var(--accent-500)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M3 10v8M21 18V12a3 3 0 00-3-3H8a3 3 0 00-3 3" />
+                    <path d="M3 14h18" />
                   </svg>
                 </div>
                 <p className="text-2xl font-bold text-primary">{specs.bedrooms}</p>
@@ -765,10 +764,10 @@ export default function AgentListingReviewPage() {
               </div>
               <div className="space-y-2 text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10">
-                  <svg className="h-6 w-6 text-[color:var(--accent-500)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8h18M3 8v8a2 2 0 002 2h14a2 2 0 002-2V8M3 8V6a2 2 0 012-2h14a2 2 0 012 2v2M7 10h10M7 10v4M17 10v4M9 12h6" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 4h2M5 4v2M5 4l1 1M7 4l-1 1M5 6h2" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 5v1M6 6v1M6 7v1" />
+                  <svg className="h-6 w-6 text-[color:var(--accent-500)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M7 10V8a2 2 0 114 0v2" />
+                    <path d="M4 13h16v2a3 3 0 01-3 3H7a3 3 0 01-3-3v-2z" />
+                    <path d="M7 18v2M17 18v2" />
                   </svg>
                 </div>
                 <p className="text-2xl font-bold text-primary">{specs.bathrooms}</p>
@@ -829,24 +828,46 @@ export default function AgentListingReviewPage() {
             </section>
           </div>
 
-          {/* Right Column - Contact Card (Sticky) */}
+          {/* Right Column - Agent Card (Sticky) */}
           <aside className="space-y-6">
             <div className="sticky top-20 space-y-6">
-              {/* Contact/Inquiry Card */}
+              {/* Agent Card */}
               <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6 shadow-lg">
-                <h3 className="text-xl font-semibold text-primary mb-4">Interested in this property?</h3>
-                <div className="space-y-4">
-                  <button className="btn btn-primary w-full justify-center text-base">
-                    Schedule a Viewing
-                  </button>
-                  <button className="btn btn-secondary w-full justify-center text-base">
-                    Contact Agent
-                  </button>
-                  <button className="btn btn-outline w-full justify-center text-base">
-                    Request Info
-                  </button>
+                <h3 className="text-xl font-semibold text-primary mb-4">Listed by</h3>
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-full bg-[color:var(--surface-2)] overflow-hidden flex items-center justify-center">
+                    {user?.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={user.avatar} alt={user?.name || "Agent"} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-sm font-semibold text-secondary">{(user?.name || "Agent").slice(0,1)}</span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-primary truncate">{user?.name || "Agent"}</div>
+                    <div className="text-xs text-secondary truncate">Real Estate Agent</div>
+                  </div>
                 </div>
-                
+                <div className="mt-4 space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted">Email</span>
+                    <span className="font-medium text-primary truncate max-w-[60%]">{user?.email || "Not provided"}</span>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-3">
+                  <a
+                    href={user?.email ? `mailto:${user.email}` : undefined}
+                    className="btn btn-primary w-full justify-center text-base"
+                  >
+                    Email Agent
+                  </a>
+                  <Link
+                    href="/profile"
+                    className="btn btn-secondary w-full justify-center text-base"
+                  >
+                    View Profile
+                  </Link>
+                </div>
                 <div className="mt-6 pt-6 border-t border-[color:var(--surface-border)] space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted">Property ID</span>
@@ -858,15 +879,17 @@ export default function AgentListingReviewPage() {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted">Status</span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--accent-500)]/10 px-2 py-1 text-xs font-medium text-[color:var(--accent-500)]">
-                      <CheckBadgeIcon className="h-3 w-3" />
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
                       Available
                     </span>
                   </div>
                 </div>
               </section>
 
-              {/* Quick Stats */}
+              {/* Property Stats */}
               <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6">
                 <h3 className="font-semibold text-primary mb-4">Property Stats</h3>
                 <dl className="space-y-3 text-sm">
@@ -876,7 +899,12 @@ export default function AgentListingReviewPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <dt className="text-muted">Floor Plans</dt>
-                    <dd className="font-medium text-primary">{media.floorPlans.length} available</dd>
+                    <dd className="font-medium text-primary">
+                      {media.floorPlans.filter((fp: any) => {
+                        const url = typeof fp === 'string' ? fp : fp?.url
+                        return url && url.trim() !== ''
+                      }).length} available
+                    </dd>
                   </div>
                   <div className="flex items-center justify-between">
                     <dt className="text-muted">Type</dt>
@@ -925,6 +953,28 @@ export default function AgentListingReviewPage() {
                 </figure>
               )
             })}
+            
+            {/* Add More Images Placeholders - fill remaining grid slots */}
+            {(() => {
+              const imageCount = media.images.length
+              const maxColumns = 5 // xl:grid-cols-5
+              const placeholdersNeeded = imageCount > 0 ? (maxColumns - (imageCount % maxColumns)) % maxColumns || maxColumns : maxColumns
+              
+              return Array.from({ length: placeholdersNeeded }).map((_, idx) => (
+                <Link
+                  key={`placeholder-${idx}`}
+                  href="/agent/upload/media?restore=1"
+                  className="group relative flex h-56 flex-col items-center justify-center gap-3 overflow-hidden rounded-xl border-2 border-dashed border-[color:var(--surface-border)] bg-[color:var(--surface-1)] cursor-pointer transition-all hover:border-[color:var(--accent-500)] hover:bg-[color:var(--accent-500)]/5 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-500)]"
+                >
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10 transition-colors group-hover:bg-[color:var(--accent-500)]/20">
+                    <svg className="h-8 w-8 text-[color:var(--accent-500)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium text-muted group-hover:text-[color:var(--accent-500)]">Add More</span>
+                </Link>
+              ))
+            })()}
           </div>
         </section>
 
