@@ -1,37 +1,226 @@
 ﻿"use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import Link from 'next/link'
 
 import {
+  CheckBadgeIcon,
   MapPinIcon,
   PhotoIcon,
   PlayCircleIcon,
-  TagIcon,
-  CubeTransparentIcon,
   ArrowsPointingOutIcon,
+  ArrowsPointingInIcon,
+  SpeakerWaveIcon,
+  SpeakerXMarkIcon,
+  PauseIcon,
 } from "@heroicons/react/24/outline"
 import { XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid'
 
-// Inline icons for property specs (match listings page)
-const BedIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-    <path d="M3 10v8M21 18V12a3 3 0 00-3-3H8a3 3 0 00-3 3" />
-    <path d="M3 14h18" />
-  </svg>
-)
+// Custom Video Player Component
+function CustomVideoPlayer({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showControls, setShowControls] = useState(true)
+  const controlsTimeoutRef = useRef<any>(undefined)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-const BathIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-    <path d="M7 10V8a2 2 0 114 0v2" />
-    <path d="M4 13h16v2a3 3 0 01-3 3H7a3 3 0 01-3-3v-2z" />
-    <path d="M7 18v2M17 18v2" />
-  </svg>
-)
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause()
+      } else {
+        videoRef.current.play()
+      }
+    }
+  }
 
-const AreaIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <ArrowsPointingOutIcon {...props} />
-)
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted
+      setIsMuted(!isMuted)
+    }
+  }
+
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return
+
+    if (!isFullscreen) {
+      if (containerRef.current.requestFullscreen) {
+        containerRef.current.requestFullscreen()
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen()
+      }
+    }
+  }
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime)
+    }
+  }
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration)
+    }
+  }
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value)
+    if (videoRef.current) {
+      videoRef.current.currentTime = time
+      setCurrentTime(time)
+    }
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const handleMouseMove = () => {
+    setShowControls(true)
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current)
+    }
+    if (isPlaying) {
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false)
+      }, 3000)
+    }
+  }
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative max-h-[90vh] w-full max-w-5xl bg-black rounded-xl overflow-hidden shadow-2xl"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => isPlaying && setShowControls(false)}
+    >
+      <video
+        ref={videoRef}
+        src={src}
+        className="w-full h-full max-h-[90vh] object-contain"
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onClick={togglePlay}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+      />
+
+      {/* Center Play/Pause Overlay */}
+      {!isPlaying && (
+        <div
+          className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer"
+          onClick={togglePlay}
+        >
+          <div className="bg-[color:var(--accent-500)] rounded-full p-6 shadow-2xl transform hover:scale-110 transition-transform">
+            <PlayCircleIcon className="h-16 w-16 text-white" />
+          </div>
+        </div>
+      )}
+
+      {/* Custom Controls */}
+      <div
+        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent transition-opacity duration-300 ${
+          showControls ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        {/* Progress Bar */}
+        <div className="px-4 pt-4">
+          <input
+            type="range"
+            min="0"
+            max={duration || 0}
+            value={currentTime}
+            onChange={handleSeek}
+            className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[color:var(--accent-500)] hover:h-2 transition-all"
+            style={{
+              background: `linear-gradient(to right, var(--accent-500) 0%, var(--accent-500) ${(currentTime / duration) * 100}%, rgba(255,255,255,0.2) ${(currentTime / duration) * 100}%, rgba(255,255,255,0.2) 100%)`
+            }}
+          />
+        </div>
+
+        {/* Controls Bar */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            {/* Play/Pause Button */}
+            <button
+              onClick={togglePlay}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? (
+                <PauseIcon className="h-6 w-6 text-white" />
+              ) : (
+                <PlayCircleIcon className="h-6 w-6 text-white" />
+              )}
+            </button>
+
+            {/* Volume Button */}
+            <button
+              onClick={toggleMute}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? (
+                <SpeakerXMarkIcon className="h-6 w-6 text-white" />
+              ) : (
+                <SpeakerWaveIcon className="h-6 w-6 text-white" />
+              )}
+            </button>
+
+            {/* Time Display */}
+            <div className="text-white text-sm font-medium">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Fullscreen Button */}
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            >
+              {isFullscreen ? (
+                <ArrowsPointingInIcon className="h-6 w-6 text-white" />
+              ) : (
+                <ArrowsPointingOutIcon className="h-6 w-6 text-white" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export type ListingUnitPayload = {
   listing: any
@@ -76,9 +265,13 @@ export type ListingReviewShape = {
 }
 
 export default function TraditionalViewer({ listing }: { listing?: ListingUnitPayload | null }) {
-  const [heroIndex, setHeroIndex] = useState(0)
-  const [viewer, setViewer] = useState<{ type: 'image' | 'video'; index: number; isFloorPlan?: boolean } | null>(null)
-  const initialCoverSet = useRef(false)
+  // Lightbox state
+  type Viewer = { type: 'image' | 'video'; index: number; isFloorPlan?: boolean } | null
+  const [viewer, setViewer] = useState<Viewer>(null)
+
+  const onCardKeyDown = (e: React.KeyboardEvent, open: () => void) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() }
+  }
 
   // Show loading state if no data is available yet
   if (!listing) {
@@ -137,39 +330,64 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
       catch { return [] }
     })() : [],
     media: {
-      images: [
-        ...(realData.coverImage ? [realData.coverImage] : []),
-        // Handle fileUpload.images as both array and JSON string
-        ...(Array.isArray(realUnit?.fileUpload?.images) ? realUnit.fileUpload.images : []),
-        ...(typeof realUnit?.fileUpload?.images === 'string' ? (() => {
-          try { return JSON.parse(realUnit.fileUpload.images || '[]') } 
-          catch { return [] }
-        })() : []),
-        // Handle all image media types
-        ...(realUnit?.media?.filter((m: any) => m.type === 'IMAGE').map((m: any) => m.url) || [])
-      ].filter((url, index, arr) => arr.indexOf(url) === index), // Remove duplicates
-      videos: [
-        // Handle fileUpload.videos as both array and JSON string
-        ...(Array.isArray(realUnit?.fileUpload?.videos) ? realUnit.fileUpload.videos : []),
-        ...(typeof realUnit?.fileUpload?.videos === 'string' ? (() => {
-          try { return JSON.parse(realUnit.fileUpload.videos || '[]') } 
-          catch { return [] }
-        })() : []),
-        ...(realUnit?.media?.filter((m: any) => m.type === 'VIDEO').map((m: any) => ({ url: m.url, label: m.caption || 'Video Tour' })) || [])
-      ],
-      floorPlans: [
-        ...(realData.floorPlans ? (() => {
-          try { return JSON.parse(realData.floorPlans) } 
-          catch { return [] }
-        })() : []),
-        // Handle fileUpload.floorPlans as both array and JSON string
-        ...(Array.isArray(realUnit?.fileUpload?.floorPlans) ? realUnit.fileUpload.floorPlans : []),
-        ...(typeof realUnit?.fileUpload?.floorPlans === 'string' ? (() => {
-          try { return JSON.parse(realUnit.fileUpload.floorPlans || '[]') } 
-          catch { return [] }
-        })() : []),
-        ...(realUnit?.media?.filter((m: any) => m.type === 'DOCUMENT' && m.role === 'FLOORPLAN').map((m: any) => ({ url: m.url, name: m.caption || 'Floor Plan' })) || [])
-      ],
+      images: (() => {
+        const allImages = [
+          ...(realData.coverImage ? [realData.coverImage] : []),
+          // Handle fileUpload.images as both array and JSON string
+          ...(Array.isArray(realUnit?.fileUpload?.images) ? realUnit.fileUpload.images : []),
+          ...(typeof realUnit?.fileUpload?.images === 'string' ? (() => {
+            try { return JSON.parse(realUnit.fileUpload.images || '[]') } 
+            catch { return [] }
+          })() : []),
+          // Handle all image media types
+          ...(realUnit?.media?.filter((m: any) => m.type === 'IMAGE').map((m: any) => m.url) || [])
+        ]
+        // Deduplicate by URL
+        return [...new Set(allImages.filter(url => url && url.trim() !== ''))]
+      })(),
+      videos: (() => {
+        const allVideos = [
+          // Handle fileUpload.videos as both array and JSON string
+          ...(Array.isArray(realUnit?.fileUpload?.videos) ? realUnit.fileUpload.videos : []),
+          ...(typeof realUnit?.fileUpload?.videos === 'string' ? (() => {
+            try { return JSON.parse(realUnit.fileUpload.videos || '[]') } 
+            catch { return [] }
+          })() : []),
+          ...(realUnit?.media?.filter((m: any) => m.type === 'VIDEO').map((m: any) => ({ url: m.url, label: m.caption || 'Video Tour' })) || [])
+        ]
+        // Deduplicate by URL
+        const seen = new Set()
+        return allVideos.filter((video: any) => {
+          const url = typeof video === 'string' ? video : video?.url
+          if (!url || seen.has(url)) return false
+          seen.add(url)
+          return true
+        })
+      })(),
+      floorPlans: (() => {
+        const allFloorPlans = [
+          ...(realData.floorPlans ? (() => {
+            try { return JSON.parse(realData.floorPlans) } 
+            catch { return [] }
+          })() : []),
+          // Handle fileUpload.floorPlans as both array and JSON string
+          ...(Array.isArray(realUnit?.fileUpload?.floorPlans) ? realUnit.fileUpload.floorPlans : []),
+          ...(typeof realUnit?.fileUpload?.floorPlans === 'string' ? (() => {
+            try { return JSON.parse(realUnit.fileUpload.floorPlans || '[]') } 
+            catch { return [] }
+          })() : []),
+          ...(realUnit?.media?.filter((m: any) => m.type === 'DOCUMENT' && m.role === 'FLOORPLAN').map((m: any) => ({ url: m.url, name: m.caption || 'Floor Plan' })) || [])
+        ]
+        
+        // Deduplicate by URL
+        const seen = new Set()
+        return allFloorPlans.filter((fp: any) => {
+          const url = typeof fp === 'string' ? fp : fp?.url
+          if (!url || seen.has(url)) return false
+          seen.add(url)
+          return true
+        })
+      })(),
       coverImage: realData.coverImage || ''
     },
     immersive: {
@@ -180,7 +398,7 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
     }
   }
 
-  const { title, subtitle, pricing, propertyType, address, city, subCity, specs, description, amenities, features, media, immersive } = data
+  const { title, subtitle, pricing, propertyType, address, city, subCity, specs, description, amenities, features, media } = data
 
   // Build a human-friendly "Listed" label from createdAt
   const listedLabel = (() => {
@@ -203,7 +421,6 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
     }
   })()
 
-
   // Build absolute URLs for stored paths
   const toAbsolute = (url: string) => {
     if (url?.startsWith('http')) return url
@@ -213,193 +430,225 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
       : `/api/files/binary?path=${encodeURIComponent(url)}`
   }
 
-  // Combine images and videos for carousel
-  const allMedia = [
-    ...media.images.filter(img => img).map((img, index) => ({ type: 'image' as const, url: img, index })),
-    ...media.videos.filter(video => video && video.url).map((video, index) => ({ type: 'video' as const, url: video.url, index, label: video.label }))
-  ]
+  // Media viewer functions
+  const closeViewer = useCallback(() => setViewer(null), [])
+  
+  // Create combined media list for unified navigation
+  const getCombinedMedia = useCallback((): Array<{ type: 'image' | 'video'; index: number; url: string }> => {
+    if (!media) return []
+    const combined: Array<{ type: 'image' | 'video'; index: number; url: string }> = []
+    
+    // Add all images first
+    media.images.forEach((img: string, index: number) => {
+      combined.push({ type: 'image', index, url: img })
+    })
+    
+    // Add all videos after images
+    media.videos.forEach((video: any, index: number) => {
+      const videoUrl = typeof video === 'string' ? video : video?.url
+      if (videoUrl) {
+        combined.push({ type: 'video', index, url: videoUrl })
+      }
+    })
+    
+    return combined
+  }, [media])
+  
+  const nextViewer = useCallback(() => {
+    if (!viewer) return
+    const combined = getCombinedMedia()
+    if (!combined.length) return
+    const currentIndex = combined.findIndex(item => 
+      item.type === viewer.type && item.index === viewer.index
+    )
+    if (currentIndex === -1) return
+    const nextIndex = (currentIndex + 1) % combined.length
+    const nextItem = combined[nextIndex]
+    setViewer({ type: nextItem.type, index: nextItem.index })
+  }, [viewer, getCombinedMedia])
+  
+  const prevViewer = useCallback(() => {
+    if (!viewer) return
+    const combined = getCombinedMedia()
+    if (!combined.length) return
+    const currentIndex = combined.findIndex(item => 
+      item.type === viewer.type && item.index === viewer.index
+    )
+    if (currentIndex === -1) return
+    const prevIndex = (currentIndex - 1 + combined.length) % combined.length
+    const prevItem = combined[prevIndex]
+    setViewer({ type: prevItem.type, index: prevItem.index })
+  }, [viewer, getCombinedMedia])
 
-  // Set hero index to cover image when media is available (only on initial load)
+  // Keyboard + scroll lock while viewer is open
   useEffect(() => {
-    if (media.coverImage && media.images.length > 0 && !initialCoverSet.current) {
-      const coverIndex = media.images.findIndex(img => img === media.coverImage)
-      if (coverIndex >= 0) {
-        setHeroIndex(coverIndex)
-        initialCoverSet.current = true
+    if (!viewer) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { closeViewer(); return }
+      // Allow native seeking for videos; only hijack arrows for images
+      if (viewer.type === 'image') {
+        if (e.key === 'ArrowRight') { e.preventDefault(); nextViewer() }
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); prevViewer() }
       }
     }
-  }, [media.coverImage, media.images])
-
-  // Carousel navigation functions
-  const nextHeroMedia = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (allMedia.length > 0) {
-      setHeroIndex((prev) => {
-        const newIndex = (prev + 1) % allMedia.length
-        return newIndex
-      })
-    }
-  }
-
-  const prevHeroMedia = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (allMedia.length > 0) {
-      setHeroIndex((prev) => {
-        const newIndex = (prev - 1 + allMedia.length) % allMedia.length
-        return newIndex
-      })
-    }
-  }
-
-  const openViewer = (type: 'image' | 'video', index: number, isFloorPlan = false) => {
-    setViewer({ type, index, isFloorPlan })
-  }
-
-  const closeViewer = () => {
-    setViewer(null)
-  }
-
-  const currentHeroMedia = allMedia[heroIndex]
-  const heroUrl = currentHeroMedia ? toAbsolute(currentHeroMedia.url) : 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1600&q=80'
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow }
+  }, [viewer, closeViewer, nextViewer, prevViewer])
 
   return (
     <div className="min-h-screen bg-[color:var(--app-background)] text-primary">
-      {/* Hero Media Carousel Section */}
-      <div className="group relative h-[400px] overflow-hidden bg-black cursor-pointer sm:h-[500px]" onClick={() => openViewer(currentHeroMedia?.type || 'image', currentHeroMedia?.index || 0)}>
-        {currentHeroMedia?.type === 'video' ? (
-          <video
-            src={heroUrl}
-            className="h-full w-full object-contain bg-black"
-            muted
-            playsInline
-            loop
-            autoPlay
-          />
-        ) : (
-          <img 
-            src={heroUrl} 
-            alt={title}
-            className="h-full w-full object-contain bg-black"
-          />
-        )}
-        
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-        
-        {/* Click to view overlay */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-          <div className="bg-black/70 rounded-full p-4">
-            {currentHeroMedia?.type === 'video' ? (
-              <PlayCircleIcon className="h-12 w-12 text-white" />
-            ) : (
-              <svg className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-              </svg>
-            )}
+      {/* Hero Media Grid Section */}
+      <div className="container py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 rounded-2xl overflow-hidden">
+          {/* Main Large Image */}
+          <div 
+            className="relative aspect-[16/9] lg:aspect-auto lg:min-h-[600px] cursor-pointer group overflow-hidden rounded-2xl"
+            onClick={() => setViewer({ type: 'image', index: 0 })}
+          >
+            <img
+              src={toAbsolute(media.coverImage || media.images[0])}
+              alt="Cover"
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
+            
+            {/* Media Count Badges */}
+            <div className="absolute bottom-4 right-4 flex gap-2">
+              <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg">
+                <PhotoIcon className="h-5 w-5 text-[color:var(--accent-500)]" />
+                <span className="text-sm font-semibold text-primary">{media.images.length}</span>
+              </div>
+              {media.videos.length > 0 && (
+                <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg">
+                  <PlayCircleIcon className="h-5 w-5 text-[color:var(--accent-500)]" />
+                  <span className="text-sm font-semibold text-primary">{media.videos.length}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Thumbnail Grid (Right Side - Hidden on Mobile) */}
+          <div className="hidden lg:grid grid-rows-3 gap-3 h-[600px]">
+            {(() => {
+              const imageThumbs = media.images.slice(1, 4)
+              const videoThumbs = media.videos.slice(0, Math.max(0, 3 - imageThumbs.length))
+              const tiles = [...imageThumbs, ...videoThumbs].slice(0, 3)
+              const totalMedia = media.images.length + media.videos.length
+
+              return tiles.map((item, idx) => {
+                const isVideoTile = idx >= imageThumbs.length
+
+                if (isVideoTile) {
+                  const videoUrl = typeof item === 'string' ? item : (item as any)?.url
+                  if (!videoUrl || typeof videoUrl !== 'string') {
+                    console.warn('Skipping invalid video item in hero grid:', item)
+                    return null
+                  }
+                  const src = toAbsolute(videoUrl)
+                  const videoIndex = media.videos.findIndex((v: any) => (typeof v === 'string' ? v === videoUrl : v?.url === videoUrl))
+                  if (videoIndex < 0) {
+                    console.warn('Video not found in media.videos list:', videoUrl)
+                    return null
+                  }
+                  const isLast = idx === 2 && totalMedia > 4
+
+                  return (
+                    <div
+                      key={`vid-${idx}-${videoIndex}`}
+                      className="relative h-full w-full cursor-pointer group overflow-hidden rounded-xl"
+                      onClick={() => setViewer({ type: 'video', index: videoIndex })}
+                    >
+                      <video
+                        src={src}
+                        className="w-full h-full object-cover"
+                        muted
+                        playsInline
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <PlayCircleIcon className="h-12 w-12 text-white" />
+                      </div>
+
+                      {isLast && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                          <span className="text-3xl font-bold text-white">+{totalMedia - 4}</span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+
+                // Image tile
+                const imageUrl = item as string
+                if (!imageUrl || typeof imageUrl !== 'string') {
+                  console.warn('Skipping invalid image item in hero grid:', item)
+                  return null
+                }
+                const src = toAbsolute(imageUrl)
+                const imageIndex = media.images.indexOf(imageUrl)
+                const isLast = idx === 2 && totalMedia > 4
+
+                return (
+                  <div
+                    key={`img-${idx}-${imageIndex}`}
+                    className="relative h-full w-full cursor-pointer group overflow-hidden rounded-xl"
+                    onClick={() => setViewer({ type: 'image', index: imageIndex >= 0 ? imageIndex : idx + 1 })}
+                  >
+                    <img
+                      src={src}
+                      alt={`Thumbnail ${idx + 1}`}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    />
+
+                    {/* Image counter on bottom right image */}
+                    {idx === 2 && (
+                      <div className="absolute bottom-2 right-2">
+                        <button className="flex items-center gap-1 bg-gray-800/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-white hover:bg-gray-700/90 transition-colors">
+                          <PhotoIcon className="h-4 w-4" />
+                          <span className="text-sm font-medium">{totalMedia}</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {isLast && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                        <span className="text-3xl font-bold text-white">+{totalMedia - 4}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              }).filter(Boolean)
+            })()}
           </div>
         </div>
-        
-        {/* Property Badge */}
-        <div className="absolute left-6 top-6 z-10">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold shadow-lg">
-            <TagIcon className="h-4 w-4 text-[color:var(--accent-500)]" />
-            {propertyType}
-          </span>
-        </div>
-
-        {/* 3D Tour Badge */}
-        {immersive.has3D && (
-          <div className="absolute right-6 top-6 z-10">
-            <span className="inline-flex items-center gap-2 rounded-full bg-[color:var(--accent-500)] px-4 py-2 text-sm font-semibold text-white shadow-lg">
-              <CubeTransparentIcon className="h-5 w-5" />
-              3D Virtual Tour Available
-            </span>
-          </div>
-        )}
-
-        {/* Carousel Navigation Arrows */}
-        {allMedia.length > 1 && (
-          <>
-            <button
-              onClick={prevHeroMedia}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/60 p-2 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/80 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/40 sm:left-4 sm:p-3"
-              aria-label="Previous media"
-            >
-              <ChevronLeftIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-            </button>
-            <button
-              onClick={nextHeroMedia}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/60 p-2 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/80 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/40 sm:right-4 sm:p-3"
-              aria-label="Next media"
-            >
-              <ChevronRightIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-            </button>
-          </>
-        )}
-
-        {/* Media Counter & Indicator Dots */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 sm:bottom-6 sm:gap-3">
-          <div className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
-            {currentHeroMedia?.type === 'video' ? (
-              <PlayCircleIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-            ) : (
-              <PhotoIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-            )}
-            <span>{heroIndex + 1} / {allMedia.length}</span>
-          </div>
-        </div>
-
-        {/* Dot Indicators */}
-        {allMedia.length > 1 && allMedia.length <= 10 && (
-          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 sm:bottom-20 sm:gap-2">
-            {allMedia.map((mediaItem, index) => (
-              <button
-                key={index}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setHeroIndex(index)
-                }}
-                className={`h-2 rounded-full transition-all duration-300 sm:h-3 ${
-                  index === heroIndex 
-                    ? 'w-6 bg-white sm:w-8' 
-                    : 'w-2 bg-white/50 hover:bg-white/80 sm:w-2'
-                }`}
-                aria-label={`Go to ${mediaItem.type} ${index + 1}`}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Main Content */}
       <div className="container py-8">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
-          {/* Left Column - Property Details */}
-          <div className="space-y-8">
-            {/* Title & Price */}
+        <div className="space-y-8">
+          {/* Top Section - Title, Stats, Description, Amenities */}
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
+            {/* Left Column - Property Details */}
+            <div className="space-y-8">
+              {/* Title & Price */}
             <section className="space-y-4">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
-                  <h1 className="text-3xl font-bold text-primary sm:text-4xl">{title}</h1>
-                  <p className="text-base text-secondary sm:text-lg">{subtitle}</p>
+                  <h1 className="text-4xl font-bold text-primary">{title}</h1>
+                  <p className="text-lg text-secondary">{subtitle}</p>
                   <div className="flex gap-3 text-muted">
-                    <MapPinIcon className="h-6 w-6 flex-shrink-0 mt-0.5 sm:h-8 sm:w-8" />
+                    <MapPinIcon className="h-8 w-8 flex-shrink-0 mt-0.5" />
                     <div className="space-y-1">
-                      <div className="text-sm font-medium sm:text-base">{address}</div>
-                      <div className="text-xs text-muted sm:text-sm">
-                        {(() => {
-                          const parts = []
-                          if (subCity) parts.push(subCity)
-                          if (city && city.toLowerCase() !== subCity?.toLowerCase()) {
-                            parts.push(city)
-                          }
-                          return parts.join(', ')
-                        })()}
+                      <div className="text-base font-medium">{address}</div>
+                      <div className="text-sm text-muted">
+                        {subCity && city ? `${subCity}, ${city}` : city || subCity || ''}
                       </div>
                     </div>
                   </div>
                 </div>
-                <div className="text-left sm:text-right">
-                  <p className="text-3xl font-bold text-[color:var(--accent-500)] sm:text-4xl">
+                <div className="text-right">
+                  <p className="text-4xl font-bold text-[color:var(--accent-500)]">
                     {pricing.currency} {pricing.basePrice}
                   </p>
                 </div>
@@ -407,50 +656,57 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
             </section>
 
             {/* Key Stats */}
-            <section className="grid grid-cols-3 gap-2 rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-4 sm:gap-4 sm:p-6">
+            <section className="grid grid-cols-3 gap-4 rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6">
               <div className="space-y-2 text-center">
-                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10 sm:h-12 sm:w-12">
-                  <BedIcon className="h-8 w-8 text-[color:var(--accent-500)]" />
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10">
+                  <svg className="h-6 w-6 text-[color:var(--accent-500)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M3 10v8M21 18V12a3 3 0 00-3-3H8a3 3 0 00-3 3" />
+                    <path d="M3 14h18" />
+                  </svg>
                 </div>
-                <p className="text-xl font-bold text-primary sm:text-2xl">{specs.bedrooms}</p>
-                <p className="text-xs text-muted sm:text-sm">Bedrooms</p>
+                <p className="text-2xl font-bold text-primary">{specs.bedrooms}</p>
+                <p className="text-sm text-muted">Bedrooms</p>
               </div>
               <div className="space-y-2 text-center">
-                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10 sm:h-12 sm:w-12">
-                  <BathIcon className="h-8 w-8 text-[color:var(--accent-500)]" />
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10">
+                  <svg className="h-6 w-6 text-[color:var(--accent-500)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M7 10V8a2 2 0 114 0v2" />
+                    <path d="M4 13h16v2a3 3 0 01-3 3H7a3 3 0 01-3-3v-2z" />
+                    <path d="M7 18v2M17 18v2" />
+                  </svg>
                 </div>
-                <p className="text-xl font-bold text-primary sm:text-2xl">{specs.bathrooms}</p>
-                <p className="text-xs text-muted sm:text-sm">Bathrooms</p>
+                <p className="text-2xl font-bold text-primary">{specs.bathrooms}</p>
+                <p className="text-sm text-muted">Bathrooms</p>
               </div>
               <div className="space-y-2 text-center">
-                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10 sm:h-12 sm:w-12">
-                  <AreaIcon className="h-8 w-8 text-[color:var(--accent-500)]" />
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10">
+                  <svg className="h-6 w-6 text-[color:var(--accent-500)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h18v18H3V3zM3 12h18M12 3v18" />
+                  </svg>
                 </div>
-                <p className="text-xl font-bold text-primary sm:text-2xl">{specs.areaSqm}</p>
-                <p className="text-xs text-muted sm:text-sm">Sqm</p>
+                <p className="text-2xl font-bold text-primary">{specs.areaSqm}</p>
+                <p className="text-sm text-muted">Sqm</p>
               </div>
             </section>
 
             {/* Description */}
-            <section className="space-y-4 rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6 sm:p-8">
-              <h2 className="text-xl font-semibold text-primary sm:text-2xl">About This Property</h2>
-              <p className="text-sm leading-relaxed text-secondary sm:text-base">{description}</p>
+            <section className="space-y-4 rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-8">
+              <h2 className="text-2xl font-semibold text-primary">About This Property</h2>
+              <p className="text-base leading-relaxed text-secondary">{description}</p>
             </section>
 
             {/* Amenities & Features */}
-            <section className="space-y-6 rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6 sm:p-8">
-              <h2 className="text-xl font-semibold text-primary sm:text-2xl">Amenities & Features</h2>
+            <section className="space-y-6 rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-8">
+              <h2 className="text-2xl font-semibold text-primary">Amenities & Features</h2>
               
               {amenities.length > 0 && (
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">Amenities</h3>
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                    {amenities.map((item: any) => (
+                    {amenities.map((item: string) => (
                       <div key={item} className="flex items-center gap-2 text-sm text-secondary">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100">
-                          <svg className="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10">
+                          <CheckBadgeIcon className="h-4 w-4 text-[color:var(--accent-500)]" />
                         </div>
                         <span>{item}</span>
                       </div>
@@ -463,12 +719,10 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
                 <div className="space-y-3 pt-4 border-t border-[color:var(--surface-border)]">
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">Special Features</h3>
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                    {features.map((item: any) => (
+                    {features.map((item: string) => (
                       <div key={item} className="flex items-center gap-2 text-sm text-secondary">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100">
-                          <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10">
+                          <CheckBadgeIcon className="h-4 w-4 text-[color:var(--accent-500)]" />
                         </div>
                         <span>{item}</span>
                       </div>
@@ -477,141 +731,242 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
                 </div>
               )}
             </section>
+          </div>
 
-            {/* Photo Gallery */}
-            <section className="space-y-4">
-              <h2 className="text-xl font-semibold text-primary sm:text-2xl">Property Gallery</h2>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {media.images.filter(path => path).map((path, index) => {
-                  const imageUrl = path.startsWith('http') 
-                    ? path 
-                    : `/api/files/binary?path=${encodeURIComponent(path)}`
-                  
-                  return (
-                    <figure
-                      key={path}
-                      className="group relative overflow-hidden rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-500)]"
-                      onClick={() => openViewer('image', index)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          openViewer('image', index)
-                        }
-                      }}
+          {/* Right Column - Agent Card (Sticky) */}
+          <aside className="space-y-6">
+            <div className="sticky top-20 space-y-6">
+              {/* Agent Card */}
+              <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6 shadow-lg">
+                <h3 className="text-xl font-semibold text-primary mb-4">Listed by</h3>
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-full bg-[color:var(--surface-2)] overflow-hidden flex items-center justify-center">
+                    {agent?.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={agent.avatarUrl} alt={agent?.name || "Agent"} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-sm font-semibold text-secondary">{(agent?.name || "Agent").slice(0,1)}</span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-primary truncate">{agent?.name || "Agent"}</div>
+                    <div className="text-xs text-secondary truncate">{agent?.jobTitle || agent?.agencyName || "Real Estate Agent"}</div>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted">Email</span>
+                    <span className="font-medium text-primary truncate max-w-[60%]">{agent?.email || "Not provided"}</span>
+                  </div>
+                  {agent?.phone && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted">Phone</span>
+                      <span className="font-medium text-primary">{agent.phone}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 space-y-3">
+                  <a
+                    href={agent?.email ? `mailto:${agent.email}` : undefined}
+                    className="btn btn-primary w-full justify-center text-base"
+                  >
+                    Email Agent
+                  </a>
+                  {agent?.phone && (
+                    <a
+                      href={`tel:${agent.phone}`}
+                      className="btn btn-secondary w-full justify-center text-base"
                     >
-                      <img
-                        src={imageUrl}
-                        alt={`Property photo ${index + 1}`}
-                        className="h-56 w-full object-cover transition duration-300 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
-                    </figure>
-                  )
-                })}
-              </div>
-            </section>
-
-            {/* Video Tours */}
-            {media.videos.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold text-primary sm:text-2xl">Video Tours</h2>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {media.videos.filter(video => video && video.url).map((video, index) => (
-                    <figure
-                      key={video.url}
-                      className="group relative overflow-hidden rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-500)]"
-                      onClick={() => openViewer('video', index)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          openViewer('video', index)
-                        }
-                      }}
-                    >
-                      <video
-                        src={toAbsolute(video.url)}
-                        preload="metadata"
-                        muted
-                        playsInline
-                        className="h-64 w-full object-cover"
-                        controls={false}
-                        onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}) }}
-                        onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0 }}
-                      />
-                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity group-hover:opacity-0">
-                        <svg className="h-16 w-16 text-white drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M19 10a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                        <p className="text-sm font-medium text-white">{video.label || 'Video Tour'}</p>
-                      </div>
-                    </figure>
-                  ))}
+                      Call Agent
+                    </a>
+                  )}
+                </div>
+                <div className="mt-6 pt-6 border-t border-[color:var(--surface-border)] space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted">Property ID</span>
+                    <span className="font-medium text-primary">EST-{Math.floor(Math.random() * 100000)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted">Listed</span>
+                    <span className="font-medium text-primary">{listedLabel}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted">Status</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Available
+                    </span>
+                  </div>
                 </div>
               </section>
-            )}
+
+              {/* Property Stats */}
+              <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6">
+                <h3 className="font-semibold text-primary mb-4">Property Stats</h3>
+                <dl className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Total Media</dt>
+                    <dd className="font-medium text-primary">{media.images.length + media.videos.length} files</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Floor Plans</dt>
+                    <dd className="font-medium text-primary">
+                      {media.floorPlans.filter((fp: any) => {
+                        const url = typeof fp === 'string' ? fp : fp?.url
+                        return url && url.trim() !== ''
+                      }).length} available
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Type</dt>
+                    <dd className="font-medium text-primary">{propertyType}</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Location</dt>
+                    <dd className="font-medium text-primary">{city}</dd>
+                  </div>
+                </dl>
+              </section>
+            </div>
+          </aside>
+        </div>
+
+        {/* Property Gallery - Full Width */}
+        <section className="space-y-4">
+          <h2 className="text-2xl font-semibold text-primary">Property Gallery</h2>
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {media.images.map((path: string, index: number) => {
+              const imageUrl = path.startsWith('http') 
+                ? path 
+                : `/api/files/binary?path=${encodeURIComponent(path)}`
+              const isCoverImage = media.coverImage === path
+              
+              return (
+                <figure
+                  key={path}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setViewer({ type: 'image', index })}
+                  onKeyDown={(e) => onCardKeyDown(e, () => setViewer({ type: 'image', index }))}
+                  className="group relative overflow-hidden rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-500)]"
+                >
+                  <img
+                    src={imageUrl}
+                    alt={`Property photo ${index + 1}`}
+                    className="h-56 w-full object-cover transition duration-300 group-hover:scale-105"
+                  />
+                  {isCoverImage && (
+                    <div className="absolute left-2 top-2 rounded-full bg-[color:var(--accent-500)] px-2 py-1 text-xs font-medium text-white">
+                      Cover Photo
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
+                </figure>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* Video Tours - Full Width */}
+        <section className="space-y-4">
+          <h2 className="text-2xl font-semibold text-primary">Video Tours ({media.videos?.length || 0})</h2>
+          {media.videos?.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {media.videos.map((video: any, index: number) => {
+                // Handle both string URLs and objects with url property
+                const videoUrl = typeof video === 'string' ? video : video?.url
+                
+                // Skip if no valid URL
+                if (!videoUrl || typeof videoUrl !== 'string') {
+                  console.warn('Invalid video data:', video)
+                  return null
+                }
+                
+                
+                return (
+                <figure
+                  key={`video-${index}-${video}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setViewer({ type: 'video', index })}
+                  onKeyDown={(e) => onCardKeyDown(e, () => setViewer({ type: 'video', index }))}
+                  className="group relative overflow-hidden rounded-xl border border-[color:var(--surface-border)] bg-gray-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-500)] shadow-md hover:shadow-lg transition-all duration-300"
+                >
+                  <video
+                    src={toAbsolute(videoUrl)}
+                    preload="metadata"
+                    muted
+                    playsInline
+                    className="h-64 w-full object-cover"
+                    controls={false}
+                    onLoadedMetadata={(e) => {
+                      // Seek to 1 second to get a better thumbnail
+                      e.currentTarget.currentTime = 1
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}) }}
+                    onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 1 }}
+                  />
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity group-hover:bg-black/10">
+                    <div className="bg-black/70 backdrop-blur-sm rounded-full p-4">
+                      <PlayCircleIcon className="h-14 w-14 text-white drop-shadow-lg" />
+                    </div>
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+                    <p className="text-sm font-semibold text-white">Video Tour</p>
+                  </div>
+                </figure>
+                )
+              }).filter(Boolean)}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted">
+              <p>No videos uploaded yet</p>
+            </div>
+          )}
+        </section>
+
+        {/* Bottom Section - Floor Plans */}
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
+          {/* Left Column - Floor Plans */}
+          <div className="space-y-8">
 
             {/* Floor Plans */}
             {media.floorPlans.length > 0 && (
               <section className="space-y-4">
-                <h2 className="text-xl font-semibold text-primary sm:text-2xl">Floor Plans</h2>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {media.floorPlans.filter(fp => fp && fp.url).map((floorPlan, index) => {
-                    const floorPlanUrl = floorPlan.url.startsWith('http')
-                      ? floorPlan.url
-                      : `/api/files/binary?path=${encodeURIComponent(floorPlan.url)}`
+                <h2 className="text-2xl font-semibold text-primary">Floor Plans</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {media.floorPlans.map((floorPlan: any, fpIndex: number) => {
+                    // Handle different data structures - floorPlan could be a string URL or an object
+                    const floorPlanUrlRaw = typeof floorPlan === 'string' ? floorPlan : floorPlan?.url
                     
-                    const isPDF = floorPlan.url.includes('.pdf')
-                    const isImage = !isPDF
-
-                    // Extract filename from URL with better handling
-                    const extractFilename = (url: string) => {
-                      // If it's a direct filename, use it
-                      if (url.includes('/') && url.split('/').pop()?.includes('.')) {
-                        return url.split('/').pop()?.split('?')[0] || 'Unknown File'
-                      }
-                      // If it's a numeric ID or encoded path, try to decode or use a generic name
-                      const pathParts = url.split('/')
-                      const lastPart = pathParts[pathParts.length - 1]
-                      
-                      // If it looks like a numeric ID, create a descriptive name
-                      if (/^\d+$/.test(lastPart)) {
-                        return `Floor Plan ${lastPart}${isPDF ? '.pdf' : '.jpg'}`
-                      }
-                      
-                      // Try to decode URL-encoded filename
-                      try {
-                        const decoded = decodeURIComponent(lastPart)
-                        if (decoded.includes('.')) {
-                          return decoded
-                        }
-                      } catch (e) {
-                        // If decoding fails, continue with fallback
-                      }
-                      
-                      // Final fallback
-                      return `Floor Plan ${index + 1}${isPDF ? '.pdf' : '.jpg'}`
+                    // Skip if no valid URL
+                    if (!floorPlanUrlRaw) {
+                      console.warn('Invalid floor plan data:', floorPlan)
+                      return null
                     }
-
-                    const filename = extractFilename(floorPlan.url)
+                    
+                    const floorPlanUrl = floorPlanUrlRaw.startsWith('http')
+                      ? floorPlanUrlRaw
+                      : `/api/files/binary?path=${encodeURIComponent(floorPlanUrlRaw)}`
+                    
+                    const isPDF = floorPlanUrlRaw.includes('.pdf')
+                    const isImage = !isPDF
 
                     const handleFloorPlanClick = () => {
                       if (isImage) {
-                        openViewer('image', index, true)
+                        // For images, open in viewer with floor plan flag
+                        setViewer({ type: 'image', index: 0, isFloorPlan: true })
                       } else {
-                        // Open PDF floor plan in new tab
+                        // For PDFs, open in new tab
                         window.open(floorPlanUrl, '_blank')
                       }
                     }
 
                     return (
                       <div
-                        key={floorPlan.url}
+                        key={`floorplan-${fpIndex}-${floorPlanUrlRaw}`}
                         className={`flex items-center gap-4 rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-4 ${
                           isImage ? 'cursor-pointer hover:bg-[color:var(--surface-2)] transition-colors' : ''
                         }`}
@@ -625,22 +980,20 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
                           }
                         } : undefined}
                       >
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent-500)]/10">
+                        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg bg-[color:var(--accent-500)]/10">
                           {isPDF ? (
-                            <svg className="h-6 w-6 text-[color:var(--accent-500)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            <svg className="h-7 w-7 text-[color:var(--accent-500)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                             </svg>
                           ) : (
-                            <svg className="h-6 w-6 text-[color:var(--accent-500)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="h-7 w-7 text-[color:var(--accent-500)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium text-primary truncate">
-                              {floorPlan.name || filename}
-                            </p>
+                            <p className="font-medium text-primary truncate">{typeof floorPlan === 'object' ? floorPlan.name || 'Floor Plan' : 'Floor Plan'}</p>
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                               isPDF 
                                 ? 'bg-[color:var(--accent-500)]/10 text-[color:var(--accent-500)]' 
@@ -664,153 +1017,64 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
                         </button>
                       </div>
                     )
-                  })}
+                  }).filter(Boolean)}
                 </div>
               </section>
             )}
+
           </div>
-
-          {/* Right Column - Contact Card (Sticky) */}
-          <aside className="space-y-6">
-            <div className="sticky top-20 space-y-6">
-              {/* Contact/Inquiry Card */}
-              {/* Agent Card */}
-              <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-4 shadow-lg sm:p-6">
-                <h3 className="text-lg font-semibold text-primary mb-4 sm:text-xl">Listed by</h3>
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-[color:var(--surface-2)] overflow-hidden flex items-center justify-center">
-                    {agent?.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={agent.avatarUrl} alt={agent?.name || "Agent"} className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="text-sm font-semibold text-secondary">{(agent?.name || "Agent").slice(0,1)}</span>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-primary truncate">{agent?.name || "Agent"}</div>
-                    <div className="text-xs text-secondary truncate">{agent?.jobTitle || agent?.agencyName || "Real Estate Agent"}</div>
-                  </div>
-                </div>
-                <div className="mt-4 space-y-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">Phone</span>
-                    <span className="font-medium text-primary">{agent?.phone || "Not provided"}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted">Email</span>
-                    <span className="font-medium text-primary truncate max-w-[60%]">{agent?.email || "Not provided"}</span>
-                  </div>
-                  {agent?.agencyName && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted">Agency</span>
-                      <span className="font-medium text-primary">{agent.agencyName}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-4 space-y-3">
-                  <a
-                    href={agent?.phone ? `tel:${agent.phone}` : undefined}
-                    className="btn btn-primary w-full justify-center text-base disabled:opacity-60 disabled:cursor-not-allowed"
-                    aria-disabled={!agent?.phone}
-                  >
-                    Call Agent
-                  </a>
-                  <a
-                    href={agent?.email ? `mailto:${agent.email}` : undefined}
-                    className="btn btn-secondary w-full justify-center text-base"
-                  >
-                    Email Agent
-                  </a>
-                </div>
-                <div className="mt-6 pt-6 border-t border-[color:var(--surface-border)] space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">Property ID</span>
-                    <span className="font-medium text-primary">EST-{Math.floor(Math.random() * 100000)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">Listed</span>
-                    <span className="font-medium text-primary">{listedLabel}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">Status</span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
-                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Available
-                    </span>
-                  </div>
-                </div>
-              </section>
-
-              {/* 3D Virtual Tour Card */}
-              {immersive.has3D && (
-                <section className="rounded-2xl border-2 border-[color:var(--accent-500)] bg-gradient-to-br from-[color:var(--accent-500)]/5 to-transparent p-4 sm:p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent-500)]">
-                      <svg className="h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-primary">3D Virtual Tour</h3>
-                      <p className="text-xs text-muted">Explore in 3D</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-secondary mb-4">
-                    Experience this property in immersive 3D. Walk through every room from the comfort of your home.
-                  </p>
-                  {immersive.viewerLink && (
-                    <button className="btn btn-primary w-full justify-center">
-                      Launch 3D Tour
-                    </button>
-                  )}
-                </section>
-              )}
-
-              {/* Quick Stats */}
-              <section className="rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-4 sm:p-6">
-                <h3 className="font-semibold text-primary mb-4">Property Stats</h3>
-                <dl className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted">Total Media</dt>
-                    <dd className="font-medium text-primary">{media.images.length + media.videos.length} files</dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted">Type</dt>
-                    <dd className="font-medium text-primary">{propertyType}</dd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <dt className="text-muted">Location</dt>
-                    <dd className="font-medium text-primary">{city}</dd>
-                  </div>
-                </dl>
-              </section>
-            </div>
-          </aside>
+        </div>
         </div>
       </div>
 
       {/* Media viewer modal (minimal, with arrows) */}
       {viewer && (() => {
-        let list, current, src
+        let list, current, src, currentPosition, totalCount
         
         if (viewer.isFloorPlan) {
           // Handle floor plan images and PDFs
           list = media.floorPlans
           current = media.floorPlans[viewer.index]
           src = current ? toAbsolute(current.url) : ''
+          currentPosition = viewer.index + 1
+          totalCount = list.length
         } else {
-          // Handle regular images and videos
-          list = viewer.type === 'image' ? media.images : media.videos
-          current = list[viewer.index]
-          src = viewer.type === 'image' ? toAbsolute(current as string) : toAbsolute((current as {url:string}).url)
+          // Handle combined images and videos
+          const combined = getCombinedMedia()
+          const currentIndex = combined.findIndex(item => 
+            item.type === viewer.type && item.index === viewer.index
+          )
+          
+          if (currentIndex === -1) {
+            console.error('Current viewer item not found in combined media')
+            return null
+          }
+          
+          const currentItem = combined[currentIndex]
+          currentPosition = currentIndex + 1
+          totalCount = combined.length
+          
+          // Get the actual media item
+          if (currentItem.type === 'image') {
+            current = media.images[currentItem.index]
+            src = toAbsolute(current as string)
+          } else {
+            current = media.videos[currentItem.index]
+            const videoUrl = typeof current === 'string' ? current : current?.url
+            src = videoUrl ? toAbsolute(videoUrl) : ''
+          }
         }
 
         const isPdf = current && (
           (typeof current === 'string' && current.includes('.pdf')) ||
           (typeof current === 'object' && current.url && current.url.includes('.pdf'))
         )
+
+        // Don't render if no valid source
+        if (!src) {
+          console.error('No valid source for viewer:', { viewer, current, src })
+          return null
+        }
 
         return (
           <div
@@ -819,76 +1083,64 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
             aria-modal="true"
             onClick={closeViewer}
           >
+            {/* Close button - fixed to screen corner */}
+            <button
+              type="button"
+              onClick={closeViewer}
+              aria-label="Close viewer"
+              className="fixed right-6 top-6 z-20 rounded-full bg-black/90 backdrop-blur-sm border border-white/20 p-4 text-white hover:bg-black hover:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/60 transition-all duration-200 shadow-lg"
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+
+            {/* Navigation arrows - fixed to bottom of screen */}
+            {totalCount > 1 && (
+              <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
+                <div className="inline-flex items-center gap-3 rounded-full bg-black/90 backdrop-blur-sm border border-white/20 px-4 py-3 pointer-events-auto shadow-lg">
+                  <button
+                    type="button"
+                    onClick={prevViewer}
+                    aria-label="Previous"
+                    className="rounded-full p-3 text-white hover:bg-white/20 hover:border-white/40 border border-transparent focus:outline-none focus:ring-2 focus:ring-white/60 transition-all duration-200"
+                  >
+                    <ChevronLeftIcon className="h-6 w-6" />
+                  </button>
+                  <span className="text-sm text-white font-semibold px-3 py-1 bg-white/10 rounded-full">
+                    {currentPosition} / {totalCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={nextViewer}
+                    aria-label="Next"
+                    className="rounded-full p-3 text-white hover:bg-white/20 hover:border-white/40 border border-transparent focus:outline-none focus:ring-2 focus:ring-white/60 transition-all duration-200"
+                  >
+                    <ChevronRightIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Content container - centered */}
             <div
-              className="relative max-h-[90vh] w-full max-w-6xl"
+              className="flex items-center justify-center w-full"
               onClick={(e) => e.stopPropagation()}
             >
               {isPdf ? (
                 // PDF viewer with fallback
-                <div className="w-full h-full">
-                  <iframe
-                    src={`${src}#toolbar=0&navpanes=0&scrollbar=1&zoom=FitH`}
-                    className="mx-auto max-h-[90vh] w-full max-w-full rounded"
-                    title="PDF Viewer"
-                    onError={() => {
-                      // Fallback: open in new tab if iframe fails
-                      window.open(src, '_blank')
-                    }}
-                  />
-                </div>
+                <iframe
+                  src={`${src}#toolbar=0&navpanes=0&scrollbar=1&zoom=FitH`}
+                  className="max-h-[90vh] w-full max-w-5xl rounded"
+                  title="PDF Viewer"
+                  onError={() => {
+                    // Fallback: open in new tab if iframe fails
+                    window.open(src, '_blank')
+                  }}
+                />
               ) : viewer.type === 'image' ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={src} alt="" className="mx-auto max-h-[90vh] w-auto max-w-full object-contain rounded-2xl" />
+                <img src={src} alt="" className="max-h-[90vh] w-auto max-w-full object-contain rounded-2xl" />
               ) : (
-                <video
-                  src={src}
-                  className="mx-auto max-h-[90vh] w-auto max-w-full rounded-2xl"
-                  controls
-                  autoPlay
-                />
-              )}
-
-              {/* Close button */}
-              <button
-                type="button"
-                onClick={closeViewer}
-                aria-label="Close viewer"
-                className="absolute right-4 top-4 rounded-full bg-black/70 p-3 text-white hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors"
-              >
-                <XMarkIcon className="h-6 w-6" />
-              </button>
-
-              {/* Navigation arrows - only show for multiple items */}
-              {list.length > 1 && (
-                <div className={`absolute inset-x-0 ${viewer.type === 'video' ? 'bottom-20' : 'bottom-4'} flex justify-center pointer-events-none`}>
-                  <div className="inline-flex items-center gap-3 rounded-full bg-black/70 px-3 py-2 pointer-events-auto">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newIndex = (viewer.index - 1 + list.length) % list.length
-                        setViewer({ ...viewer, index: newIndex })
-                      }}
-                      aria-label="Previous"
-                      className="rounded-full p-2 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors"
-                    >
-                      <ChevronLeftIcon className="h-6 w-6" />
-                    </button>
-                    <span className="text-sm text-white font-medium px-2">
-                      {viewer.index + 1} / {list.length}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newIndex = (viewer.index + 1) % list.length
-                        setViewer({ ...viewer, index: newIndex })
-                      }}
-                      aria-label="Next"
-                      className="rounded-full p-2 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/40 transition-colors"
-                    >
-                      <ChevronRightIcon className="h-6 w-6" />
-                    </button>
-                  </div>
-                </div>
+                <CustomVideoPlayer src={src} />
               )}
             </div>
           </div>
