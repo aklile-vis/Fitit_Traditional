@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
 
 import { useAuth } from '@/contexts/AuthContext'
+import { countriesFull as countries, isoToFlag, isoToTwemojiUrl } from '@/lib/countries'
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading, logout, refresh } = useAuth()
@@ -14,6 +15,10 @@ export default function ProfilePage() {
 
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [dialCode, setDialCode] = useState<string>('+251')
+  const [localPhone, setLocalPhone] = useState<string>('')
+  const [isCountryOpen, setIsCountryOpen] = useState(false)
+  const countryRef = useRef<HTMLDivElement | null>(null)
   const [jobTitle, setJobTitle] = useState('')
   const [agencyName, setAgencyName] = useState('')
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
@@ -57,7 +62,24 @@ export default function ProfilePage() {
         const r = await fetch('/api/profile', { cache: 'no-store' })
         const data = await r.json().catch(() => ({} as any))
         if (r.ok && data?.profile) {
-          setPhone(data.profile.phone || '')
+          const current = String(data.profile.phone || '')
+          // Parse current phone into dial code + local number
+          const parsed = (() => {
+            const compact = current.replace(/\s|-/g, '')
+            if (!compact.startsWith('+')) return null
+            // Longest dial-code match from our list
+            const dialSet = Array.from(new Set(countries.map((c) => c.dialCode))).sort((a, b) => b.length - a.length)
+            const match = dialSet.find((d) => compact.startsWith(d))
+            if (!match) return null
+            const local = compact.slice(match.length)
+            return { dial: match, local }
+          })()
+          if (parsed) {
+            setDialCode(parsed.dial)
+            setLocalPhone(parsed.local)
+          } else {
+            setLocalPhone(current.replace(/^\+/, ''))
+          }
           setJobTitle(data.profile.jobTitle || '')
           setAgencyName(data.profile.agencyName || '')
           if (data.profile.avatarUrl) {
@@ -68,6 +90,43 @@ export default function ProfilePage() {
       } catch {}
     })()
   }, [user])
+
+  // Derive phone (E.164-like) whenever parts change
+  useEffect(() => {
+    const cleanDial = dialCode?.startsWith('+') ? dialCode : `+${dialCode || ''}`
+    const cleanLocal = (localPhone || '').replace(/[^0-9]/g, '')
+    if (!cleanLocal) {
+      setPhone('')
+    } else {
+      const combined = cleanDial + cleanLocal
+      setPhone(combined)
+    }
+  }, [dialCode, localPhone])
+
+  // Default dial code from locale when nothing loaded
+  useEffect(() => {
+    if (dialCode && dialCode !== '+251') return
+    if (localPhone) return
+    try {
+      const locale = Intl.DateTimeFormat().resolvedOptions().locale || navigator.language
+      const region = (locale.split('-').pop() || '').toUpperCase()
+      const candidate = countries.find((c) => c.iso2 === region)
+      if (candidate) setDialCode(candidate.dialCode)
+    } catch {}
+  }, [dialCode, localPhone])
+
+  // Close country dropdown on outside click
+  useEffect(() => {
+    if (!isCountryOpen) return
+    const handler = (e: MouseEvent) => {
+      const el = countryRef.current
+      if (el && e.target instanceof Node && !el.contains(e.target)) {
+        setIsCountryOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [isCountryOpen])
 
   // Removed IntersectionObserver: sidebar now switches panes, not scroll
 
@@ -649,7 +708,77 @@ export default function ProfilePage() {
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium text-secondary">Phone</label>
-                      <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. +1 555 123 4567" />
+                      <div className="input flex items-stretch p-0 h-11 overflow-visible focus-within:ring-2 focus-within:ring-[var(--accent-500)]">
+                        {/* Country / Dial Code Selector */}
+                        <div className="relative shrink-0" ref={countryRef}>
+                          <button
+                            type="button"
+                            className="relative flex w-10 sm:w-20 md:w-24 items-center justify-center sm:justify-start pl-2 pr-2 sm:pl-3 sm:pr-10 bg-transparent border-r border-[color:var(--surface-border-strong)] h-full"
+                            onClick={() => setIsCountryOpen((v) => !v)}
+                            aria-haspopup="listbox"
+                            aria-expanded={isCountryOpen}
+                            title={dialCode}
+                          >
+                            <span className="flex items-center gap-1 whitespace-nowrap sm:mr-10">
+                              {(() => {
+                                const c = countries.find((x) => x.dialCode === dialCode) || countries.find((x) => x.iso2 === 'ET')
+                                if (!c) return <span className="emoji-text">🏳️</span>
+                                const url = isoToTwemojiUrl(c.iso2, 'svg')
+                                return url ? (
+                                  <img src={url} alt={isoToFlag(c.iso2)} className="h-4 w-4" />
+                                ) : (
+                                  <span className="emoji-text">{isoToFlag(c.iso2)}</span>
+                                )
+                              })()}
+                              <span className="hidden sm:inline text-sm text-primary">{dialCode}</span>
+                            </span>
+                            <svg className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                          {isCountryOpen && (
+                            <div className="absolute left-0 z-50 mt-1 min-w-[12rem] sm:w-full rounded-xl border border-[color:var(--surface-border)] bg-white shadow-lg">
+                              <ul role="listbox" className="max-h-60 overflow-auto p-1">
+                                {(() => {
+                                  const sorted = [...countries].sort((a, b) => a.name.localeCompare(b.name))
+                                  return sorted.map((c) => (
+                                    <li
+                                      key={c.iso2}
+                                      role="option"
+                                      className="px-2 py-2 cursor-pointer hover:bg-gray-50 rounded-lg flex items-center justify-between"
+                                      onClick={() => {
+                                        setDialCode(c.dialCode)
+                                        setIsCountryOpen(false)
+                                      }}
+                                    >
+                                      <span className="flex items-center gap-1 text-sm">
+                                        {(() => {
+                                          const url = isoToTwemojiUrl(c.iso2, 'svg')
+                                          return url ? (
+                                            <img src={url} alt={isoToFlag(c.iso2)} className="h-4 w-4" />
+                                          ) : (
+                                            <span className="emoji-text">{isoToFlag(c.iso2)}</span>
+                                          )
+                                        })()}
+                                        <span className="text-primary">{c.name}</span>
+                                      </span>
+                                      <span className="text-xs text-secondary">{c.dialCode}</span>
+                                    </li>
+                                  ))
+                                })()}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                        {/* Local phone number */}
+                        <input
+                          className="flex-1 min-w-0 bg-transparent border-0 outline-none px-3"
+                          value={localPhone}
+                          onChange={(e) => setLocalPhone(e.target.value)}
+                          placeholder="Local number"
+                          inputMode="tel"
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium text-secondary">Job Title</label>
