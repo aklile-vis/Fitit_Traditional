@@ -271,7 +271,7 @@ export default function SimpleUploadPage() {
         <div className="mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => router.push('/agent/dashboard')}
+                onClick={() => router.push('/agent/my-listings')}
                 className="rounded-full border border-surface bg-surface-1 p-2 text-secondary transition-colors hover:border-surface-strong hover:bg-surface-hover hover:text-primary"
               >
                 <ArrowLeftIcon className="h-6 w-6" />
@@ -422,7 +422,7 @@ export default function SimpleUploadPage() {
                   <span>View 3D Model</span>
                 </button>
                 <button
-                  onClick={() => router.push('/agent/dashboard')}
+                  onClick={() => router.push('/agent/my-listings')}
                   className="btn btn-primary flex items-center gap-2"
                 >
                   <CheckCircleIcon className="h-5 w-5" />

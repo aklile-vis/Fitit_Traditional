@@ -54,7 +54,7 @@ export default function RegisterPage() {
         return
       }
 
-      router.replace(role === 'AGENT' ? '/agent/dashboard' : '/listings')
+      router.replace(role === 'AGENT' ? '/agent/my-listings' : '/listings')
     } catch (err) {
       setError((err as Error)?.message || 'Registration failed')
     } finally {

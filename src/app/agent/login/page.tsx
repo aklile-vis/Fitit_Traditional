@@ -22,7 +22,7 @@ export default function AgentLoginPage() {
   useEffect(() => {
     if (authLoading) return
     if (isAuthenticated && (user?.role === 'AGENT' || user?.role === 'ADMIN')) {
-      router.replace('/agent/dashboard')
+      router.replace('/agent/my-listings')
     }
   }, [authLoading, isAuthenticated, user?.role, router])
 
@@ -40,7 +40,7 @@ export default function AgentLoginPage() {
 
     const role = result.user?.role || user?.role
     if (role === 'AGENT' || role === 'ADMIN') {
-      router.push('/agent/dashboard')
+      router.push('/agent/my-listings')
     } else {
       setError('Agent access required. Contact support to upgrade your account.')
       logout()

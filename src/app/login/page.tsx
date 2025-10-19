@@ -21,7 +21,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated) {
       // Always redirect to listings page for regular users, agents go to dashboard
-      const destination = user?.role === 'AGENT' ? '/agent/dashboard' : '/listings'
+      const destination = user?.role === 'AGENT' ? '/agent/my-listings' : '/listings'
       router.replace(destination)
     }
   }, [isAuthenticated, user?.role, router])
@@ -35,7 +35,7 @@ export default function LoginPage() {
 
     if (result.success) {
       // Always redirect to listings page for regular users, agents go to dashboard
-      const destination = result.user?.role === 'AGENT' ? '/agent/dashboard' : '/listings'
+      const destination = result.user?.role === 'AGENT' ? '/agent/my-listings' : '/listings'
       router.replace(destination)
     } else {
       setError(result.error || 'Login failed')

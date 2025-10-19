@@ -148,9 +148,6 @@ export default function MyListingsPage() {
                 <ArrowTopRightOnSquareIcon className="h-5 w-5" />
                 Create New Listing
               </Link>
-              <Link href="/agent/units" className="btn btn-secondary px-6 py-3 text-base font-semibold shadow-md hover:shadow-lg">
-                Units Dashboard
-              </Link>
             </div>
           </div>
         </div>
@@ -182,17 +179,13 @@ export default function MyListingsPage() {
               <div className="space-y-3">
                 <h3 className="text-2xl font-bold text-primary">No listings yet</h3>
                 <p className="text-secondary leading-relaxed">
-                  Start building your real estate portfolio by creating your first listing. 
-                  You can publish properties from the Units dashboard or create new ones directly.
+                  Start building your real estate portfolio by creating your first listing.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href="/agent/upload" className="btn btn-primary px-8 py-3 text-base font-semibold shadow-lg hover:shadow-xl">
                   <ArrowTopRightOnSquareIcon className="h-5 w-5" />
                   Create Your First Listing
-                </Link>
-                <Link href="/agent/units" className="btn btn-secondary px-8 py-3 text-base font-semibold shadow-md hover:shadow-lg">
-                  View Units Dashboard
                 </Link>
               </div>
             </div>
@@ -236,15 +229,10 @@ export default function MyListingsPage() {
 
                     {/* Type Badge + Actions */}
                     <div className="absolute right-4 top-4 z-10 flex items-center gap-3">
-                      {listing.has3D ? (
+                      {listing.has3D && (
                         <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[color:var(--brand-600)] to-[color:var(--brand-500)] px-4 py-2 text-xs font-bold text-white shadow-lg backdrop-blur-sm">
                           <Square3Stack3DIcon className="h-4 w-4" />
                           Immersive Ready
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-gray-600 to-gray-500 px-4 py-2 text-xs font-bold text-white shadow-lg backdrop-blur-sm">
-                          <BuildingOffice2Icon className="h-4 w-4" />
-                          Standard Listing
                         </div>
                       )}
 

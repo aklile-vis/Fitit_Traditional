@@ -3,7 +3,6 @@ import Link from 'next/link'
 const navigation = {
   product: [
     { label: 'Listings', href: '/listings' },
-    { label: 'Agent studio', href: '/agent/units' },
     { label: 'Materials library', href: '/agent/materials-manager' },
   ],
   company: [
