@@ -77,9 +77,11 @@ export default function ProfilePage() {
           if (parsed) {
             setDialCode(parsed.dial)
             setLocalPhone(parsed.local)
-          } else {
+          } else if (current) {
+            // If there's a phone number but we can't parse it, keep default dial code
             setLocalPhone(current.replace(/^\+/, ''))
           }
+          // If no phone number exists, keep default dial code (+251) and empty local phone
           setJobTitle(data.profile.jobTitle || '')
           setAgencyName(data.profile.agencyName || '')
           if (data.profile.avatarUrl) {
@@ -103,16 +105,12 @@ export default function ProfilePage() {
     }
   }, [dialCode, localPhone])
 
-  // Default dial code from locale when nothing loaded
+  // Keep default dial code (+251) when no phone number is loaded
   useEffect(() => {
     if (dialCode && dialCode !== '+251') return
     if (localPhone) return
-    try {
-      const locale = Intl.DateTimeFormat().resolvedOptions().locale || navigator.language
-      const region = (locale.split('-').pop() || '').toUpperCase()
-      const candidate = countries.find((c) => c.iso2 === region)
-      if (candidate) setDialCode(candidate.dialCode)
-    } catch {}
+    // Always use +251 as default, don't override with locale
+    setDialCode('+251')
   }, [dialCode, localPhone])
 
   // Close country dropdown on outside click
@@ -713,13 +711,13 @@ export default function ProfilePage() {
                         <div className="relative shrink-0" ref={countryRef}>
                           <button
                             type="button"
-                            className="relative flex w-10 sm:w-20 md:w-24 items-center justify-center sm:justify-start pl-2 pr-2 sm:pl-3 sm:pr-10 bg-transparent border-r border-[color:var(--surface-border-strong)] h-full"
+                            className="relative flex w-16 sm:w-20 md:w-24 items-center justify-start pl-2 pr-2 sm:pl-3 sm:pr-10 bg-transparent border-r border-[color:var(--surface-border-strong)] h-full"
                             onClick={() => setIsCountryOpen((v) => !v)}
                             aria-haspopup="listbox"
                             aria-expanded={isCountryOpen}
                             title={dialCode}
                           >
-                            <span className="flex items-center gap-1 whitespace-nowrap sm:mr-10">
+                            <span className="flex items-center gap-1 whitespace-nowrap mr-8 sm:mr-10">
                               {(() => {
                                 const c = countries.find((x) => x.dialCode === dialCode) || countries.find((x) => x.iso2 === 'ET')
                                 if (!c) return <span className="emoji-text">🏳️</span>
@@ -730,7 +728,7 @@ export default function ProfilePage() {
                                   <span className="emoji-text">{isoToFlag(c.iso2)}</span>
                                 )
                               })()}
-                              <span className="hidden sm:inline text-sm text-primary">{dialCode}</span>
+                              <span className="text-sm text-primary">{dialCode}</span>
                             </span>
                             <svg className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
@@ -779,6 +777,9 @@ export default function ProfilePage() {
                           inputMode="tel"
                         />
                       </div>
+                      <p className="mt-1 text-xs text-muted">
+                        This number will be used to connect with you via Telegram and WhatsApp for property inquiries.
+                      </p>
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium text-secondary">Job Title</label>
