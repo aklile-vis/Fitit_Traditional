@@ -3,7 +3,6 @@
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-import { useAuth } from '@/contexts/AuthContext'
 import TraditionalViewer from "./TraditionalViewer"
 
 interface ListingUnitPayload {
@@ -24,7 +23,6 @@ export default function PublicListingPage() {
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<ListingUnitPayload | null>(null)
   const [status, setStatus] = useState('')
-  const { isAuthenticated, token } = useAuth()
 
   useEffect(() => {
     if (!id) return
@@ -71,11 +69,7 @@ export default function PublicListingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <TraditionalViewer 
-        data={data}
-        isAuthenticated={isAuthenticated}
-        token={token}
-      />
+      <TraditionalViewer listing={data} />
     </div>
   )
 }

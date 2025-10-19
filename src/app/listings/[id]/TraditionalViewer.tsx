@@ -215,8 +215,8 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
 
   // Combine images and videos for carousel
   const allMedia = [
-    ...media.images.map((img, index) => ({ type: 'image' as const, url: img, index })),
-    ...media.videos.map((video, index) => ({ type: 'video' as const, url: video.url, index, label: video.label }))
+    ...media.images.filter(img => img).map((img, index) => ({ type: 'image' as const, url: img, index })),
+    ...media.videos.filter(video => video && video.url).map((video, index) => ({ type: 'video' as const, url: video.url, index, label: video.label }))
   ]
 
   // Set hero index to cover image when media is available (only on initial load)
@@ -482,7 +482,7 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
             <section className="space-y-4">
               <h2 className="text-xl font-semibold text-primary sm:text-2xl">Property Gallery</h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {media.images.map((path, index) => {
+                {media.images.filter(path => path).map((path, index) => {
                   const imageUrl = path.startsWith('http') 
                     ? path 
                     : `/api/files/binary?path=${encodeURIComponent(path)}`
@@ -518,7 +518,7 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold text-primary sm:text-2xl">Video Tours</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {media.videos.map((video, index) => (
+                  {media.videos.filter(video => video && video.url).map((video, index) => (
                     <figure
                       key={video.url}
                       className="group relative overflow-hidden rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-500)]"
@@ -561,7 +561,7 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold text-primary sm:text-2xl">Floor Plans</h2>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {media.floorPlans.map((floorPlan, index) => {
+                  {media.floorPlans.filter(fp => fp && fp.url).map((floorPlan, index) => {
                     const floorPlanUrl = floorPlan.url.startsWith('http')
                       ? floorPlan.url
                       : `/api/files/binary?path=${encodeURIComponent(floorPlan.url)}`

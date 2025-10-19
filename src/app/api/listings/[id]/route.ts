@@ -193,6 +193,26 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           }
         } catch {}
       }
+
+      // Floor Plans
+      if (Array.isArray(body.floorPlans)) {
+        try {
+          await prisma.media.deleteMany({ where: { unitId, type: 'DOCUMENT' as any, role: 'FLOORPLAN' as any } })
+          const floorPlans: Array<string> = body.floorPlans.filter((u: unknown): u is string => typeof u === 'string' && u)
+          if (floorPlans.length > 0) {
+            await prisma.media.createMany({
+              data: floorPlans.map((u, idx) => ({
+                type: 'DOCUMENT' as any,
+                role: 'FLOORPLAN' as any,
+                url: u,
+                sortOrder: idx,
+                unitId,
+                uploadedById: auth.user.id,
+              })),
+            })
+          }
+        } catch {}
+      }
     }
     return NextResponse.json(updated)
   } catch (e: any) {

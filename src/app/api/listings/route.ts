@@ -217,6 +217,21 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    if (body.floorPlans && Array.isArray(body.floorPlans) && body.floorPlans.length > 0) {
+      const floorPlanMedia = body.floorPlans.map((url: string, index: number) => ({
+        type: 'DOCUMENT' as const,
+        role: 'FLOORPLAN' as const,
+        url: url,
+        sortOrder: index,
+        unitId: targetUnitId,
+        uploadedById: auth.user?.id,
+      }))
+      
+      await prisma.media.createMany({
+        data: floorPlanMedia
+      })
+    }
+
     return NextResponse.json(listing)
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to create/update listing' }, { status: 500 })
