@@ -454,6 +454,8 @@ export default function HomePage() {
                     {/* Status Tags (match listings grid) */}
                     <div className="absolute left-4 top-4 flex flex-col gap-2">
                   </div>
+                  {/* Close image container before details */}
+                  </div>
                   <div className="flex flex-1 flex-col gap-3 px-5 pb-6 pt-5 text-sm text-primary">
                     <div className="space-y-1">
                       <h3 className="text-base font-semibold text-primary transition-colors group-hover:text-secondary">{listing.title}</h3>
