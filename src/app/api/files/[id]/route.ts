@@ -42,14 +42,14 @@ function isWithinAllowed(pathname: string) {
   return allowedRoots.some(root => targetPath === root || targetPath.startsWith(root + sep))
 }
 
-export async function GET(request: NextRequest, context: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const auth = requireAgent(request, { allowQueryToken: true })
     if (!auth.ok) {
       return auth.response
     }
 
-    const { id } = context.params
+    const { id } = await context.params
     const { searchParams } = new URL(request.url)
     const type = (searchParams.get('type') || 'glb').toLowerCase()
 

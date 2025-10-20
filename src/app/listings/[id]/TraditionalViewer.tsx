@@ -17,6 +17,7 @@ import {
   UserIcon,
 } from "@heroicons/react/24/outline"
 import { XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid'
+import MapDisplay from '@/components/MapDisplay'
 
 // Custom Icons for Telegram and WhatsApp
 const TelegramIcon = ({ className }: { className?: string }) => (
@@ -261,6 +262,8 @@ export type ListingReviewShape = {
   address: string
   city: string
   subCity: string
+  latitude?: number | null
+  longitude?: number | null
   specs: { bedrooms: number; bathrooms: number; areaSqm: number }
   description: string
   amenities: string[]
@@ -330,6 +333,8 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
     address: realData.address || 'Address not specified',
     city: realData.city || '',
     subCity: realData.subCity || '',
+    latitude: realData.latitude || null,
+    longitude: realData.longitude || null,
     specs: {
       bedrooms: realData.bedrooms || 0,
       bathrooms: realData.bathrooms || 0,
@@ -736,6 +741,7 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
                 </div>
               )}
             </section>
+
           </div>
 
           {/* Right Column - Agent Card (Sticky) */}
@@ -1051,6 +1057,23 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
 
           </div>
         </div>
+
+        {/* Location Map - Two Column Width */}
+        {(data.latitude && data.longitude) && (
+          <section className="space-y-4 rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-8">
+            <h2 className="text-2xl font-semibold text-primary">Location</h2>
+            <MapDisplay
+              latitude={data.latitude}
+              longitude={data.longitude}
+              address={data.address}
+              city={data.city}
+              subCity={data.subCity}
+              title={data.title}
+              height="h-96"
+              showAddress={true}
+            />
+          </section>
+        )}
         </div>
       </div>
 

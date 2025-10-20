@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import { SUPPORTED_CURRENCIES } from '@/lib/utils'
 import { useWizardDataProtection } from '@/hooks/useWizardDataProtection'
 import WizardWarningModal from '@/components/WizardWarningModal'
+import LocationInput from '@/components/LocationInput'
 
 // ================================
 // Types & Constants
@@ -22,6 +23,8 @@ type ListingFormState = {
   address: string
   city: string
   subCity: string
+  latitude?: number | null
+  longitude?: number | null
   bedrooms: string
   bathrooms: string
   areaSqm: string
@@ -37,6 +40,8 @@ const DEFAULT_FORM: ListingFormState = {
   address: '',
   city: '',
   subCity: '',
+  latitude: null,
+  longitude: null,
   bedrooms: '',
   bathrooms: '',
   areaSqm: '',
@@ -536,57 +541,36 @@ export default function AgentUploadDetailsPage() {
         {/* Address & Location Section*/}
         <section className="surface-soft space-y-6 p-8 rounded-2xl border border-[color:var(--surface-border)]">
           <h3 className="text-base font-semibold uppercase">Address & Location</h3>
-          <div className="grid gap-4 md:grid-cols-3">
-            <label className="space-y-1">
-              <span className="text-[11px] uppercase tracking-wide text-muted">Neighborhood</span>
-              <div className="relative">
-                <input
-                  value={form.address}
-                  name="address"
-                  onChange={handleChange('address')}
-                  onBlur={() => handleBlur('address')}
-                  className="input h-11 w-full"
-                  placeholder="Bole around Edna mall"
-                />
-                {errors.address && (
-                  <p className="mt-1 text-xs text-red-500">{errors.address}</p>
-                )}
-              </div>
-            </label>
-            <label className="space-y-1">
-              <span className="text:[11px] uppercase tracking-wide text-muted">City / Region</span>
-              <div className="relative">
-                <input
-                  value={form.city}
-                  name="city"
-                  onChange={handleChange('city')}
-                  onBlur={() => handleBlur('city')}
-                  className="input h-11 w-full"
-                  placeholder="Addis Ababa"
-                />
-                {errors.city && (
-                  <p className="mt-1 text-xs text-red-500">{errors.city}</p>
-                )}
-              </div>
-            </label>
-            <label className="space-y-1">
-              <span className="text-[11px] uppercase tracking-wide text-muted">Sub City</span>
-              <div className="relative">
-                <input
-                  required
-                  name="subCity"
-                  value={form.subCity}
-                  onChange={handleChange('subCity')}
-                  onBlur={() => handleBlur('subCity')}
-                  className="input h-11 w-full"
-                  placeholder="Bole"
-                />
-                {errors.subCity && (
-                  <p className="mt-1 text-xs text-red-500">{errors.subCity}</p>
-                )}
-              </div>
-            </label>
-          </div>
+          <LocationInput
+            address={form.address}
+            city={form.city}
+            subCity={form.subCity}
+            latitude={form.latitude}
+            longitude={form.longitude}
+            onLocationChange={(coordinates) => {
+              if (coordinates) {
+                setForm(prev => ({
+                  ...prev,
+                  latitude: coordinates.latitude,
+                  longitude: coordinates.longitude
+                }))
+              } else {
+                setForm(prev => ({
+                  ...prev,
+                  latitude: null,
+                  longitude: null
+                }))
+              }
+            }}
+            onAddressChange={(addressData) => {
+              setForm(prev => ({
+                ...prev,
+                address: addressData.address,
+                city: addressData.city,
+                subCity: addressData.subCity
+              }))
+            }}
+          />
         </section>
 
         {/* Property Details Section*/}

@@ -3,10 +3,10 @@ import { prisma } from '@/lib/database';
 
 export async function GET(
   _request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = context.params
+    const { id } = await context.params
     const file = await prisma.fileUpload.findUnique({ where: { id } })
     if (!file) return NextResponse.json({ error: 'Model not found' }, { status: 404 })
 
@@ -36,10 +36,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = context.params
+    const { id } = await context.params
     const updates = await request.json()
     const file = await prisma.fileUpload.update({
       where: { id },
@@ -60,10 +60,10 @@ export async function PUT(
 
 export async function DELETE(
   _request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = context.params
+    const { id } = await context.params
     await prisma.fileUpload.delete({ where: { id } })
     return NextResponse.json({ success: true })
   } catch (error) {

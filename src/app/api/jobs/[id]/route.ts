@@ -3,11 +3,11 @@ import { getDatabase } from '@/lib/database';
 
 export async function GET(
   _request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const db = getDatabase();
-    const { id } = context.params;
+    const { id } = await context.params;
     const job = db.getProcessingJob(id);
     
     if (!job) {
@@ -29,11 +29,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const db = getDatabase();
-    const { id } = context.params;
+    const { id } = await context.params;
     const updates = await request.json();
     
     const job = db.updateProcessingJob(id, updates);
@@ -57,11 +57,11 @@ export async function PUT(
 
 export async function DELETE(
   _request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const db = getDatabase();
-    const { id } = context.params;
+    const { id } = await context.params;
     const success = db.deleteProcessingJob(id);
     
     if (!success) {

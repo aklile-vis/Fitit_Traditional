@@ -4,12 +4,12 @@ import { resolve, join } from 'path'
 
 import { requireAgent } from '@/lib/serverAuth'
 
-export async function GET(request: NextRequest, { params }: { params: { unitId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ unitId: string }> }) {
   try {
     const auth = requireAgent(request)
     if (!auth.ok) return auth.response
 
-    const unitId = params.unitId
+    const { unitId } = await params
     if (!unitId) {
       return NextResponse.json({ error: 'unitId required' }, { status: 400 })
     }

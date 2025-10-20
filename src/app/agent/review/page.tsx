@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 
 import { useAuth } from '@/contexts/AuthContext'
 import ListingSuccessModal from '@/components/ListingSuccessModal'
+import MapDisplay from '@/components/MapDisplay'
 import {
   CheckBadgeIcon,
   ExclamationTriangleIcon,
@@ -250,30 +251,62 @@ export default function AgentListingReviewPage() {
       const raw = sessionStorage.getItem('agent:reviewDraft')
       if (!raw) return
       const parsed = JSON.parse(raw)
-      // Basic shape guard and normalisation
-      const normalized: any = {
-        title: typeof parsed?.title === 'string' ? parsed.title : '',
-        subtitle: typeof parsed?.subtitle === 'string' ? parsed.subtitle : '',
+      
+      // Fetch coordinates from database if not in draft
+      const fetchCoordinates = async () => {
+        if (parsed.latitude && parsed.longitude) return parsed
+        
+        try {
+          const response = await fetch('/api/listings')
+          if (response.ok) {
+            const listings = await response.json()
+            const matchingListing = listings.find((listing: any) => 
+              listing.title === parsed.title && 
+              listing.address === parsed.address
+            )
+            
+            if (matchingListing && matchingListing.latitude && matchingListing.longitude) {
+              parsed.latitude = matchingListing.latitude
+              parsed.longitude = matchingListing.longitude
+              parsed.address = matchingListing.address
+              parsed.city = matchingListing.city
+              parsed.subCity = matchingListing.subCity
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching coordinates:', error)
+        }
+        
+        return parsed
+      }
+      
+      fetchCoordinates().then((updatedParsed) => {
+        // Basic shape guard and normalisation
+        const normalized: any = {
+        title: typeof updatedParsed?.title === 'string' ? updatedParsed.title : '',
+        subtitle: typeof updatedParsed?.subtitle === 'string' ? updatedParsed.subtitle : '',
         status: 'Draft',
         pricing: {
-          basePrice: typeof parsed?.pricing?.basePrice === 'string' ? parsed.pricing.basePrice : String(parsed?.pricing?.basePrice || ''),
-          currency: typeof parsed?.pricing?.currency === 'string' ? parsed.pricing.currency : 'ETB',
+          basePrice: typeof updatedParsed?.pricing?.basePrice === 'string' ? updatedParsed.pricing.basePrice : String(updatedParsed?.pricing?.basePrice || ''),
+          currency: typeof updatedParsed?.pricing?.currency === 'string' ? updatedParsed.pricing.currency : 'ETB',
         },
-        propertyType: typeof parsed?.propertyType === 'string' ? parsed.propertyType : '',
-        location: typeof parsed?.location === 'string' ? parsed.location : '',
-        address: typeof parsed?.address === 'string' ? parsed.address : '',
-        city: typeof parsed?.city === 'string' ? parsed.city : '',
-        subCity: typeof parsed?.subCity === 'string' ? parsed.subCity : '',
+        propertyType: typeof updatedParsed?.propertyType === 'string' ? updatedParsed.propertyType : '',
+        location: typeof updatedParsed?.location === 'string' ? updatedParsed.location : '',
+        address: typeof updatedParsed?.address === 'string' ? updatedParsed.address : '',
+        city: typeof updatedParsed?.city === 'string' ? updatedParsed.city : '',
+        subCity: typeof updatedParsed?.subCity === 'string' ? updatedParsed.subCity : '',
+        latitude: typeof updatedParsed?.latitude === 'number' ? updatedParsed.latitude : null,
+        longitude: typeof updatedParsed?.longitude === 'number' ? updatedParsed.longitude : null,
         specs: {
-          bedrooms: parsed?.specs?.bedrooms || '0',
-          bathrooms: parsed?.specs?.bathrooms || '1',
-          areaSqm: Number(parsed?.specs?.areaSqm || 0),
+          bedrooms: updatedParsed?.specs?.bedrooms || '0',
+          bathrooms: updatedParsed?.specs?.bathrooms || '1',
+          areaSqm: Number(updatedParsed?.specs?.areaSqm || 0),
         },
-        description: typeof parsed?.description === 'string' ? parsed.description : '',
-        amenities: Array.isArray(parsed?.amenities) ? parsed.amenities : [],
-        features: Array.isArray(parsed?.features) ? parsed.features : [],
+        description: typeof updatedParsed?.description === 'string' ? updatedParsed.description : '',
+        amenities: Array.isArray(updatedParsed?.amenities) ? updatedParsed.amenities : [],
+        features: Array.isArray(updatedParsed?.features) ? updatedParsed.features : [],
         media: {
-          images: Array.isArray(parsed?.media?.images) ? parsed.media.images.filter((url: string) => {
+          images: Array.isArray(updatedParsed?.media?.images) ? updatedParsed.media.images.filter((url: string) => {
             // Filter out problematic URLs and log them for debugging
             if (url.includes('file_storage/processed/renders/') || url === 'placeholder.jpg') {
               console.warn('Filtering out problematic image URL:', url)
@@ -281,9 +314,9 @@ export default function AgentListingReviewPage() {
             }
             return true
           }) : [],
-          videos: Array.isArray(parsed?.media?.videos) ? parsed.media.videos : [],
-          floorPlans: Array.isArray(parsed?.media?.floorPlans) ? parsed.media.floorPlans : [],
-          coverImage: parsed?.media?.coverImage || null,
+          videos: Array.isArray(updatedParsed?.media?.videos) ? updatedParsed.media.videos : [],
+          floorPlans: Array.isArray(updatedParsed?.media?.floorPlans) ? updatedParsed.media.floorPlans : [],
+          coverImage: updatedParsed?.media?.coverImage || null,
         },
         immersive: {
           has3D: false,
@@ -302,6 +335,9 @@ export default function AgentListingReviewPage() {
         },
       }
       setDraft(normalized)
+      }).catch(() => {
+        // ignore fetch errors
+      })
     } catch {
       // ignore parse/storage errors
     }
@@ -475,9 +511,11 @@ export default function AgentListingReviewPage() {
         description: description,
         basePrice: parseFloat(pricing.basePrice.replace(/,/g, '')), // Changed from 'price' to 'basePrice'
         currency: pricing.currency,
-        address: location.split(', ')[0],
-        city: location.split(', ')[2] || location.split(', ')[1], // Use the last part as city
-        subCity: location.split(', ')[1] || draft?.subCity || '', // Use the middle part as subCity
+        address: draft?.address || location.split(', ')[0],
+        city: draft?.city || location.split(', ')[2] || location.split(', ')[1], // Use the last part as city
+        subCity: draft?.subCity || location.split(', ')[1] || '', // Use the middle part as subCity
+        latitude: draft?.latitude || null,
+        longitude: draft?.longitude || null,
         images: media.images.filter((url: string) => url && url.trim() !== ''),
         videos: media.videos.map((v: any) => typeof v === 'string' ? v : v?.url).filter((url: string) => url && url.trim() !== ''),
         floorPlans: media.floorPlans.map((fp: any) => typeof fp === 'string' ? fp : fp?.url).filter((url: string) => url && url.trim() !== ''),
@@ -1192,6 +1230,25 @@ export default function AgentListingReviewPage() {
         </div>
         </div>
       </div>
+
+      {/* Location Map */}
+      {(draft?.latitude && draft?.longitude) && (
+        <div className="container py-8">
+          <section className="space-y-4 rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-8">
+            <h2 className="text-2xl font-semibold text-primary">Location</h2>
+            <MapDisplay
+              latitude={draft.latitude}
+              longitude={draft.longitude}
+              address={draft.address}
+              city={draft.city}
+              subCity={draft.subCity}
+              title={title}
+              height="h-96"
+              showAddress={true}
+            />
+          </section>
+        </div>
+      )}
 
       {/* Step 3 Navigation */}
       <div className="container py-8">

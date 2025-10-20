@@ -187,12 +187,13 @@ async function buildChangeLogPdf(
   return pdf.save()
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = requireAgent(request)
   if (!auth.ok) return auth.response
 
+  const { id } = await params
   const unit = await prisma.propertyUnit.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       fileUpload: true,
       listing: true,

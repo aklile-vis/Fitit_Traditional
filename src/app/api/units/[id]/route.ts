@@ -7,12 +7,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/database'
 import { requireAgent } from '@/lib/serverAuth'
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = requireAgent(request)
     if (!auth.ok) return auth.response
 
-    const id = params.id
+    const { id } = await params
     const unit = await prisma.propertyUnit.findUnique({
       where: { id },
       include: { fileUpload: true, listing: true }

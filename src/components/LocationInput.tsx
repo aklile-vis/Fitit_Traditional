@@ -1,0 +1,425 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { MapPinIcon, MagnifyingGlassIcon, ExclamationTriangleIcon, CheckCircleIcon, MapIcon } from '@heroicons/react/24/outline'
+import { geocodeAddress, formatAddress, isValidCoordinates, type GeocodingResult, type GeocodingError } from '@/lib/geocoding'
+import dynamic from 'next/dynamic'
+
+// Dynamically import Leaflet only on client side
+let L: any = null
+if (typeof window !== 'undefined') {
+  L = require('leaflet')
+  
+  // Fix for default markers in Next.js
+  delete (L.Icon.Default.prototype as any)._getIconUrl
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  })
+}
+
+// Create a custom red marker icon
+const createCustomIcon = (color: string = 'red') => {
+  if (!L) return null
+  return L.divIcon({
+    className: 'custom-div-icon',
+    html: `<div style="
+      background-color: ${color};
+      width: 25px;
+      height: 25px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      border: 3px solid white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    ">
+      <div style="
+        transform: rotate(45deg);
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+        margin-top: -2px;
+      ">📍</div>
+    </div>`,
+    iconSize: [25, 25],
+    iconAnchor: [12, 24],
+  })
+}
+
+// Dynamically import the map components to avoid SSR issues
+const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false })
+const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false })
+const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false })
+const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false })
+
+interface LocationInputProps {
+  address: string
+  city: string
+  subCity: string
+  latitude?: number | null
+  longitude?: number | null
+  onLocationChange: (coordinates: { latitude: number; longitude: number } | null) => void
+  onAddressChange: (address: { address: string; city: string; subCity: string }) => void
+  disabled?: boolean
+}
+
+interface MapMarker {
+  lat: number
+  lng: number
+}
+
+export default function LocationInput({
+  address,
+  city,
+  subCity,
+  latitude,
+  longitude,
+  onLocationChange,
+  onAddressChange,
+  disabled = false
+}: LocationInputProps) {
+  const [isGeocoding, setIsGeocoding] = useState(false)
+  const [geocodingError, setGeocodingError] = useState<string | null>(null)
+  const [showMap, setShowMap] = useState(false)
+  const [mapMarker, setMapMarker] = useState<MapMarker | null>(null)
+  const [isManualMode, setIsManualMode] = useState(false)
+  const [manualLat, setManualLat] = useState('')
+  const [manualLng, setManualLng] = useState('')
+  const [mapInstance, setMapInstance] = useState<any>(null)
+
+  // Initialize map marker from existing coordinates
+  useEffect(() => {
+    if (latitude && longitude && isValidCoordinates(latitude, longitude)) {
+      setMapMarker({ lat: latitude, lng: longitude })
+      setManualLat(latitude.toString())
+      setManualLng(longitude.toString())
+    }
+  }, [latitude, longitude])
+
+  // Set up map reference when map is ready
+  useEffect(() => {
+    if (showMap && mapInstance) {
+      // Map is ready, we can use the instance
+    }
+  }, [showMap, mapInstance])
+
+  const handleMapReady = (map: any) => {
+    setMapInstance(map)
+  }
+
+  // Auto-geocode when address components change
+  useEffect(() => {
+    const fullAddress = formatAddress({ address, city, subCity, country: 'Ethiopia' })
+    if (fullAddress && fullAddress.length > 10 && !isManualMode) {
+      const timeoutId = setTimeout(() => {
+        handleGeocode(fullAddress)
+      }, 1000) // Debounce for 1 second
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [address, city, subCity, isManualMode])
+
+  const handleGeocode = async (addressToGeocode?: string) => {
+    const targetAddress = addressToGeocode || formatAddress({ address, city, subCity, country: 'Ethiopia' })
+    
+    if (!targetAddress || targetAddress.length < 10) {
+      setGeocodingError('Please enter a complete address')
+      return
+    }
+
+    setIsGeocoding(true)
+    setGeocodingError(null)
+
+    try {
+      const result = await geocodeAddress(targetAddress)
+      
+      if ('error' in result) {
+        setGeocodingError(result.message)
+        onLocationChange(null)
+      } else {
+        setMapMarker({ lat: result.latitude, lng: result.longitude })
+        setManualLat(result.latitude.toString())
+        setManualLng(result.longitude.toString())
+        onLocationChange({ latitude: result.latitude, longitude: result.longitude })
+        setGeocodingError(null)
+      }
+    } catch (error) {
+      setGeocodingError('Failed to geocode address')
+      onLocationChange(null)
+    } finally {
+      setIsGeocoding(false)
+    }
+  }
+
+  const handleManualCoordinates = () => {
+    const lat = parseFloat(manualLat)
+    const lng = parseFloat(manualLng)
+    
+    if (isValidCoordinates(lat, lng)) {
+      setMapMarker({ lat, lng })
+      onLocationChange({ latitude: lat, longitude: lng })
+      setGeocodingError(null)
+    } else {
+      setGeocodingError('Invalid coordinates. Latitude must be between -90 and 90, longitude between -180 and 180.')
+    }
+  }
+
+  const handleMapClick = (e: any) => {
+    if (disabled) return
+    
+    const { lat, lng } = e.latlng
+    setManualLat(lat.toFixed(6))
+    setManualLng(lng.toFixed(6))
+    setMapMarker({ lat, lng })
+    onLocationChange({ latitude: lat, longitude: lng })
+  }
+
+  const recenterMap = () => {
+    if (mapMarker) {
+      // Try to get the map instance from state first
+      if (mapInstance) {
+        mapInstance.setView([mapMarker.lat, mapMarker.lng], 18)
+        return
+      }
+      
+      // Fallback: find the map instance in the DOM
+      const mapElement = document.querySelector('.leaflet-container')
+      if (mapElement && (mapElement as any)._leaflet_id) {
+        const map = (mapElement as any)._leaflet
+        if (map) {
+          map.setView([mapMarker.lat, mapMarker.lng], 18)
+        }
+      }
+    }
+  }
+
+  // Default center for Ethiopia (Addis Ababa)
+  const defaultCenter: [number, number] = [9.0054, 38.7636]
+
+  return (
+    <div className="space-y-4">
+      {/* Address Input Fields */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <label className="space-y-1">
+          <span className="text-[11px] uppercase tracking-wide text-muted">Neighborhood</span>
+          <div className="relative">
+            <input
+              value={address}
+              name="address"
+              onChange={(e) => onAddressChange({ address: e.target.value, city, subCity })}
+              className="input h-11 w-full"
+              placeholder="Bole around Edna mall"
+              disabled={disabled}
+            />
+          </div>
+        </label>
+        <label className="space-y-1">
+          <span className="text-[11px] uppercase tracking-wide text-muted">City / Region</span>
+          <div className="relative">
+            <input
+              value={city}
+              name="city"
+              onChange={(e) => onAddressChange({ address, city: e.target.value, subCity })}
+              className="input h-11 w-full"
+              placeholder="Addis Ababa"
+              disabled={disabled}
+            />
+          </div>
+        </label>
+        <label className="space-y-1">
+          <span className="text-[11px] uppercase tracking-wide text-muted">Sub City</span>
+          <div className="relative">
+            <input
+              required
+              name="subCity"
+              value={subCity}
+              onChange={(e) => onAddressChange({ address, city, subCity: e.target.value })}
+              className="input h-11 w-full"
+              placeholder="Bole"
+              disabled={disabled}
+            />
+          </div>
+        </label>
+      </div>
+
+      {/* Geocoding Status and Controls */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {isGeocoding && (
+            <div className="flex items-center gap-2 text-sm text-blue-600">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+              Finding location...
+            </div>
+          )}
+          
+          {geocodingError && (
+            <div className="flex items-center gap-2 text-sm text-red-600">
+              <ExclamationTriangleIcon className="h-4 w-4" />
+              {geocodingError}
+            </div>
+          )}
+          
+          {mapMarker && !isGeocoding && !geocodingError && (
+            <div className="flex items-center gap-2 text-sm text-green-600">
+              <CheckCircleIcon className="h-4 w-4" />
+              Location found
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleGeocode()}
+            disabled={disabled || isGeocoding}
+            className="btn-secondary btn-sm flex items-center gap-1"
+          >
+            <MagnifyingGlassIcon className="h-4 w-4" />
+            Find Location
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => setShowMap(!showMap)}
+            disabled={disabled}
+            className="btn-secondary btn-sm"
+          >
+            {showMap ? 'Hide Map' : 'Show Map'}
+          </button>
+        </div>
+      </div>
+
+      {/* Interactive Map */}
+      {showMap && (
+        <div className="space-y-4">
+          {/* Map Container */}
+          <div className="relative">
+            <div className="h-96 w-full rounded-lg border-2 border-gray-200 overflow-hidden">
+              {L ? (
+                <MapContainer
+                  center={mapMarker ? [mapMarker.lat, mapMarker.lng] : defaultCenter}
+                  zoom={mapMarker ? 18 : 10}
+                  style={{ height: '100%', width: '100%' }}
+                  onClick={handleMapClick}
+                  ref={handleMapReady}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  {mapMarker && (
+                    <Marker 
+                      position={[mapMarker.lat, mapMarker.lng]}
+                      icon={createCustomIcon('#ef4444')}
+                    >
+                      <Popup>
+                        <div className="text-center">
+                          <div className="font-semibold">Property Location</div>
+                          <div className="text-sm text-gray-600">
+                            {formatAddress({ address, city, subCity })}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {mapMarker.lat.toFixed(6)}, {mapMarker.lng.toFixed(6)}
+                          </div>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  )}
+                </MapContainer>
+              ) : (
+                <div className="h-full w-full flex items-center justify-center bg-gray-100">
+                  <div className="text-center text-gray-500">
+                    <MapPinIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Loading map...</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Map controls */}
+            <div className="absolute top-2 right-2 flex flex-col gap-1">
+              <button
+                onClick={recenterMap}
+                className="bg-white hover:bg-gray-50 border border-gray-300 p-2 rounded-lg shadow-lg transition-colors z-10"
+                title="Recenter on location"
+              >
+                <MapIcon className="h-4 w-4 text-gray-700" />
+              </button>
+            </div>
+            
+            {/* Map instructions */}
+            <div className="absolute bottom-2 left-2 bg-white/90 px-2 py-1 rounded text-xs text-gray-600">
+              Click on the map to set exact location
+            </div>
+          </div>
+
+          {/* Manual Coordinate Input */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs uppercase tracking-wide text-muted mb-1">
+                Latitude
+              </label>
+              <input
+                type="number"
+                step="any"
+                value={manualLat}
+                onChange={(e) => setManualLat(e.target.value)}
+                className="input w-full"
+                placeholder="9.0054"
+                disabled={disabled}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs uppercase tracking-wide text-muted mb-1">
+                Longitude
+              </label>
+              <input
+                type="number"
+                step="any"
+                value={manualLng}
+                onChange={(e) => setManualLng(e.target.value)}
+                className="input w-full"
+                placeholder="38.7636"
+                disabled={disabled}
+              />
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleManualCoordinates}
+              disabled={disabled}
+              className="btn-secondary btn-sm"
+            >
+              Update from Coordinates
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => setIsManualMode(!isManualMode)}
+              disabled={disabled}
+              className={`btn-sm ${isManualMode ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              {isManualMode ? 'Auto Mode' : 'Manual Mode'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Coordinate Display */}
+      {mapMarker && (
+        <div className="bg-gray-50 rounded-lg p-3">
+          <div className="text-xs uppercase tracking-wide text-muted mb-1">Current Location</div>
+          <div className="text-sm font-mono">
+            {mapMarker.lat.toFixed(6)}, {mapMarker.lng.toFixed(6)}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

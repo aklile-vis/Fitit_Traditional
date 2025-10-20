@@ -51,6 +51,8 @@ type Listing = {
   address?: string | null
   city?: string | null
   subCity?: string | null
+  latitude?: number | null
+  longitude?: number | null
   bedrooms?: number | null
   bathrooms?: number | null
   areaSqm?: number | null

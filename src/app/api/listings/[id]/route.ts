@@ -100,6 +100,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const auth = requireAgent(request)
     if (!auth.ok) return auth.response
 
+    const { id } = await params
     const body = await request.json()
 
     // Normalize types for numeric/int fields
@@ -124,7 +125,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const updated = await prisma.unitListing.update({
-      where: { id: (await params).id },
+      where: { id },
       data: {
         title: body.title ?? undefined,
         description: body.description ?? undefined,
@@ -225,11 +226,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const auth = requireAgent(request)
     if (!auth.ok) return auth.response
 
+    const { id } = await params
     const body = await request.json()
     if (typeof body.isPublished !== 'boolean') {
       return NextResponse.json({ error: 'isPublished boolean required' }, { status: 400 })
     }
-    const updated = await prisma.unitListing.update({ where: { id: (await params).id }, data: { isPublished: body.isPublished } })
+    const updated = await prisma.unitListing.update({ where: { id }, data: { isPublished: body.isPublished } })
     return NextResponse.json(updated)
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to publish/unpublish' }, { status: 500 })
@@ -241,7 +243,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const auth = requireAgent(request)
     if (!auth.ok) return auth.response
 
-    const listingId = (await params).id
+    const { id: listingId } = await params
 
     // Verify the listing exists and belongs to the agent (best-effort)
     // Supports legacy rows without createdById by falling back to file owner

@@ -298,6 +298,8 @@ export default function AgentUploadMediaPage() {
         address: form.address || '',
         city: form.city || '',
         subCity: form.subCity || '',
+        latitude: form.latitude || null,
+        longitude: form.longitude || null,
         specs: {
           bedrooms: form.bedrooms || '0',
           bathrooms: form.bathrooms || '1',

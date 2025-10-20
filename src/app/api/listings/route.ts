@@ -63,6 +63,8 @@ export async function POST(request: NextRequest) {
       address: body.address ?? null,
       city: body.city ?? null,
       subCity: body.subCity ?? null,
+      latitude: body.latitude ?? null,
+      longitude: body.longitude ?? null,
       bedrooms: parseBedrooms(body.bedrooms ?? 0),
       bathrooms: parseBathrooms(body.bathrooms ?? 1),
       areaSqm: body.areaSqm ?? 0,

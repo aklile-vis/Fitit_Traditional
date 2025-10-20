@@ -9,22 +9,24 @@ function cleanString(value: unknown) {
   return trimmed.length ? trimmed : undefined
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = requireAgent(request)
   if (!auth.ok) return auth.response
 
-  const unit = await prisma.propertyUnit.findUnique({ where: { id: params.id } })
+  const { id } = await params
+  const unit = await prisma.propertyUnit.findUnique({ where: { id } })
   if (!unit) return NextResponse.json({ error: 'Unit not found' }, { status: 404 })
 
   const state = (unit.editorState as Record<string, unknown> | null)?.developerReview ?? null
   return NextResponse.json(state ?? { approved: false })
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = requireAgent(request)
   if (!auth.ok) return auth.response
 
-  const unit = await prisma.propertyUnit.findUnique({ where: { id: params.id } })
+  const { id } = await params
+  const unit = await prisma.propertyUnit.findUnique({ where: { id } })
   if (!unit) return NextResponse.json({ error: 'Unit not found' }, { status: 404 })
 
   const body = await request.json().catch(() => ({})) as {
@@ -57,7 +59,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 
   await prisma.propertyUnit.update({
-    where: { id: params.id },
+    where: { id },
     data: { editorState: nextEditorState },
   })
 
