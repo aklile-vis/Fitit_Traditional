@@ -1269,7 +1269,7 @@ export default function ListingsIndexPage() {
           </div>
         ) : (
           /* List View */
-          <div className="space-y-4">
+          <div className="space-y-6">
             {paginatedListings.map((listing, index) => {
               const imageSrc = listing.coverImage
                 ? `/api/files/binary?path=${encodeURIComponent(listing.coverImage)}&listingId=${encodeURIComponent(listing.id)}`
@@ -1283,17 +1283,17 @@ export default function ListingsIndexPage() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true, margin: '-60px' }}
                   transition={{ duration: 0.45, delay: index * 0.05 }}
-                  className="group overflow-hidden rounded-2xl border border-[color:var(--surface-border)] bg-white shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="group relative overflow-hidden rounded-2xl border border-[color:var(--surface-border)] bg-white shadow-md hover:shadow-2xl transition-all duration-300"
                 >
-                  <Link href={`/listings/${listing.id}`} className="flex min-h-48">
+                  <div className="flex flex-col lg:flex-row lg:h-[280px]">
                     {/* Image Section */}
-                    <div className="relative w-80 flex-shrink-0 overflow-hidden">
+                    <Link href={`/listings/${listing.id}`} className="relative lg:w-80 h-56 lg:h-full flex-shrink-0 overflow-hidden">
                       {imageSrc ? (
                         <Image
                           alt={listing.title}
                           src={imageSrc}
                           width={320}
-                          height={192}
+                          height={280}
                           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                           loading="lazy"
                           placeholder="blur"
@@ -1305,56 +1305,53 @@ export default function ListingsIndexPage() {
                           }}
                         />
                       ) : (
-                        <div className="h-full w-full bg-gray-200 flex items-center justify-center">
-                          <div className="text-center text-gray-500">
+                        <div className="h-full w-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                          <div className="text-center text-gray-400">
                             <PhotoIcon className="h-12 w-12 mx-auto mb-2" />
-                            <p className="text-sm">No Image</p>
+                            <p className="text-xs font-medium">No Image</p>
                           </div>
                         </div>
                       )}
                       
                       {/* Fallback for failed images */}
-                      <div className="h-full w-full bg-gray-200 items-center justify-center hidden">
-                        <div className="text-center text-gray-500">
+                      <div className="h-full w-full bg-gradient-to-br from-gray-100 to-gray-200 items-center justify-center hidden">
+                        <div className="text-center text-gray-400">
                           <PhotoIcon className="h-12 w-12 mx-auto mb-2" />
-                          <p className="text-sm">Image failed to load</p>
+                          <p className="text-xs font-medium">Image failed to load</p>
                         </div>
                       </div>
                       
-                    </div>
+                      {/* Property Type Badge (if available) */}
+                      {listing.propertyType && (
+                        <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-sm">
+                          <span className="text-xs font-semibold text-white">
+                            {listing.propertyType}
+                          </span>
+                        </div>
+                      )}
+                    </Link>
 
                     {/* Content Section */}
-                    <div className="flex-1 p-6 flex flex-col">
-                      {/* Header */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <h3 className="text-xl font-semibold text-gray-900 group-hover:text-[color:var(--brand-600)] transition-colors mb-2">
-                            {listing.title}
-                          </h3>
+                    <div className="flex-1 p-4 flex flex-col min-w-0">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex-1 min-w-0">
+                          {/* Title */}
+                          <Link href={`/listings/${listing.id}`}>
+                            <h3 className="text-lg font-bold text-gray-900 group-hover:text-[color:var(--brand-600)] transition-colors mb-2 line-clamp-1">
+                              {listing.title}
+                            </h3>
+                          </Link>
                           
-                          {/* Agency Name - Prominent Display */}
-                          {listing.agent?.agencyName && (
-                            <div className="mb-3">
-                              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color:var(--brand-50)] border border-[color:var(--brand-200)]">
-                                <svg className="h-5 w-5 text-[color:var(--brand-600)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                                <span className="text-base font-semibold text-[color:var(--brand-700)]">
-                                  {listing.agent.agencyName}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                          
-                          <div className="space-y-1">
+                          {/* Location */}
+                          <div className="mb-3">
                             {listing.address && (
-                              <div className="flex items-center gap-1 text-sm text-gray-600">
-                                <MapPinIcon className="h-4 w-4" />
-                                <span>{listing.address}</span>
+                              <div className="flex items-center gap-1.5 text-gray-600 mb-1">
+                                <MapPinIcon className="h-4 w-4 flex-shrink-0" />
+                                <span className="text-sm font-medium">{listing.address}</span>
                               </div>
                             )}
                             {(listing.subCity || listing.city) && (
-                              <div className="text-sm text-gray-500">
+                              <div className="text-sm text-gray-500 ml-5">
                                 {(() => {
                                   const parts = []
                                   if (listing.subCity) parts.push(listing.subCity)
@@ -1366,10 +1363,80 @@ export default function ListingsIndexPage() {
                               </div>
                             )}
                           </div>
+                          
+                          {/* Description */}
+                          {listing.description && (
+                            <div className="mb-3">
+                              <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+                                {listing.description}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* Property Specs */}
+                          <div className="flex items-center gap-4">
+                            {listing.bedrooms !== null && listing.bedrooms !== undefined && (
+                              <div className="flex items-center gap-1.5">
+                                <div className="p-1.5 rounded-lg bg-[color:var(--accent-50)]">
+                                  <BedIcon className="h-4 w-4 text-[color:var(--accent-500)]" />
+                                </div>
+                                <span className="text-sm font-semibold text-gray-900">{listing.bedrooms}</span>
+                              </div>
+                            )}
+                            {listing.bathrooms !== null && listing.bathrooms !== undefined && (
+                              <div className="flex items-center gap-1.5">
+                                <div className="p-1.5 rounded-lg bg-[color:var(--accent-50)]">
+                                  <BathIcon className="h-4 w-4 text-[color:var(--accent-500)]" />
+                                </div>
+                                <span className="text-sm font-semibold text-gray-900">{listing.bathrooms}</span>
+                              </div>
+                            )}
+                            {listing.areaSqm && listing.areaSqm > 0 && (
+                              <div className="flex items-center gap-1.5">
+                                <div className="p-1.5 rounded-lg bg-[color:var(--accent-50)]">
+                                  <AreaIcon className="h-4 w-4 text-[color:var(--accent-500)]" />
+                                </div>
+                                <span className="text-sm font-semibold text-gray-900">{listing.areaSqm} m²</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                         
-                        {/* Quick Actions */}
-                        <div className="flex items-center gap-2 ml-4">
+                        {/* Right Side: Agency Badge & Quick Actions */}
+                        <div className="flex flex-col gap-1.5 items-end">
+                          {/* Agency Badge & Share Button Row */}
+                          <div className="flex items-center gap-2">
+                            {/* Agency Badge */}
+                            {listing.agent?.agencyName && (
+                              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color:var(--brand-50)] border-2 border-[color:var(--brand-300)]">
+                                <svg className="h-4 w-4 text-[color:var(--brand-600)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                <span className="text-sm font-bold text-[color:var(--brand-700)]">
+                                  {listing.agent.agencyName}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Share Button */}
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                navigator.share?.({
+                                  title: listing.title,
+                                  text: listing.description || '',
+                                  url: window.location.origin + `/listings/${listing.id}`
+                                })
+                              }}
+                              className="rounded-lg bg-[color:var(--surface-1)] p-2 shadow-sm hover:shadow-md hover:bg-[color:var(--surface-hover)] transition-all duration-300"
+                              title="Share listing"
+                            >
+                              <ShareIcon className="h-4 w-4 text-gray-600" />
+                            </button>
+                          </div>
+                          
+                          {/* Bookmark Button (if applicable) */}
                           {isAuthenticated && !isAgent && (
                             <button
                               onClick={(e) => {
@@ -1377,88 +1444,44 @@ export default function ListingsIndexPage() {
                                 e.stopPropagation()
                                 toggleFavorite(listing.id)
                               }}
-                              className={`rounded-full bg-gray-100 p-2 hover:bg-gray-200 transition-all duration-300 ${
+                              className={`rounded-lg bg-[color:var(--surface-1)] p-2 shadow-sm hover:shadow-md hover:bg-[color:var(--surface-hover)] transition-all duration-300 ${
                                 animatingBookmarks.has(listing.id) ? 'scale-110' : 'scale-100'
                               }`}
+                              title={isFavorite ? 'Remove from saved' : 'Save listing'}
                             >
                               <motion.div
                                 animate={animatingBookmarks.has(listing.id) ? { scale: [1, 1.2, 1] } : {}}
                                 transition={{ duration: 0.6, ease: "easeInOut" }}
                               >
                                 {isFavorite ? (
-                                  <BookmarkSolidIcon className="h-5 w-5 text-[color:var(--brand-600)]" />
+                                  <BookmarkSolidIcon className="h-4 w-4 text-[color:var(--brand-600)]" />
                                 ) : (
-                                  <BookmarkIcon className="h-5 w-5 text-gray-600" />
+                                  <BookmarkIcon className="h-4 w-4 text-gray-600" />
                                 )}
                               </motion.div>
                             </button>
                           )}
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              navigator.share?.({
-                                title: listing.title,
-                                text: listing.description || '',
-                                url: window.location.origin + `/listings/${listing.id}`
-                              })
-                            }}
-                            className="rounded-full bg-gray-100 p-2 hover:bg-gray-200 transition-colors"
-                          >
-                            <ShareIcon className="h-5 w-5 text-gray-600" />
-                          </button>
                         </div>
                       </div>
 
-                      {/* Details Row */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <CurrencyDollarIcon className="h-5 w-5 text-[color:var(--brand-600)]" />
-                          <span className="text-xl font-bold text-gray-900">
+                      {/* Price and CTA */}
+                      <div className="mt-auto flex items-center justify-between gap-3">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl font-bold text-gray-900">
                             {formatPrice(listing.basePrice, listing.currency || 'ETB')}
                           </span>
                         </div>
                         
-                        <div className="flex items-center gap-6 text-sm text-gray-600">
-                          {listing.bedrooms !== null && listing.bedrooms !== undefined && (
-                            <div className="flex items-center gap-1">
-                              <BedIcon className="h-6 w-6 text-[color:var(--accent-500)]" />
-                              <span className="font-medium">{listing.bedrooms}</span>
-                            </div>
-                          )}
-                          {listing.bathrooms !== null && listing.bathrooms !== undefined && (
-                            <div className="flex items-center gap-1">
-                              <BathIcon className="h-6 w-6 text-[color:var(--accent-500)]" />
-                              <span className="font-medium">{listing.bathrooms}</span>
-                            </div>
-                          )}
-                          {listing.areaSqm && listing.areaSqm > 0 && (
-                            <div className="flex items-center gap-1">
-                              <AreaIcon className="h-6 w-6 text-[color:var(--accent-500)]" />
-                              <span className="font-medium">{listing.areaSqm}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Description */}
-                      {listing.description && (
-                        <div className="mb-4">
-                          <p className="text-sm text-gray-600 line-clamp-2">
-                            {listing.description}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Action Footer */}
-                      <div className="mt-auto flex items-center justify-between pt-4 border-t border-gray-100">
-                        <div className="text-sm text-gray-500">
-                          View Details
-                        </div>
-                        <ArrowTopRightOnSquareIcon className="h-4 w-4 text-gray-400 group-hover:text-[color:var(--brand-600)] transition-colors" />
+                        <Link 
+                          href={`/listings/${listing.id}`}
+                          className="btn btn-primary text-sm py-2 px-4 group/btn flex items-center gap-1.5 whitespace-nowrap"
+                        >
+                          <span>View Details</span>
+                          <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5 transition-transform group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5" />
+                        </Link>
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 </motion.div>
               )
             })}
