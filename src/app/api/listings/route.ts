@@ -12,11 +12,48 @@ export async function GET(request: NextRequest) {
       const auth = requireAgent(request)
       if (!auth.ok) return auth.response
     }
+    
     const listings = await prisma.unitListing.findMany({
       where: onlyPublished ? { isPublished: true } : undefined,
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      include: {
+        // Include agent information through the createdById relationship
+        // We need to manually join with User and UserProfile since Prisma doesn't have direct relation
+      }
     })
-    return NextResponse.json(listings)
+    
+    // For each listing, fetch the agent information
+    const listingsWithAgent = await Promise.all(
+      listings.map(async (listing) => {
+        let agent = null
+        if (listing.createdById) {
+          try {
+            const user = await prisma.user.findUnique({
+              where: { id: listing.createdById },
+              include: {
+                profile: true
+              }
+            })
+            if (user) {
+              agent = {
+                name: user.name,
+                agencyName: user.profile?.agencyName,
+                avatarUrl: user.profile?.avatarUrl
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching agent for listing:', listing.id, error)
+          }
+        }
+        
+        return {
+          ...listing,
+          agent
+        }
+      })
+    )
+    
+    return NextResponse.json(listingsWithAgent)
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to list listings' }, { status: 500 })
   }

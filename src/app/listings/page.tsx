@@ -62,6 +62,12 @@ type Listing = {
   propertyType?: string | null // Add property type field
   createdAt?: string
   updatedAt?: string
+  // Agent information
+  agent?: {
+    name?: string | null
+    agencyName?: string | null
+    avatarUrl?: string | null
+  } | null
 }
 
 type Filters = {
@@ -72,6 +78,7 @@ type Filters = {
   bathrooms: string[]
   propertyType: string[]
   city: string
+  agency: string // Add agency filter
 }
 
 type SortOption = 'newest' | 'oldest' | 'price-low' | 'price-high' | 'area-low' | 'area-high' | 'bedrooms-low' | 'bedrooms-high'
@@ -118,7 +125,8 @@ export default function ListingsIndexPage() {
     bedrooms: [],
     bathrooms: [],
     propertyType: [],
-    city: ''
+    city: '',
+    agency: ''
   })
   const [sortBy, setSortBy] = useState<SortOption>('newest')
   const [showFilters, setShowFilters] = useState(false)
@@ -140,6 +148,8 @@ export default function ListingsIndexPage() {
   const cityRef = useRef<HTMLDivElement>(null)
   const [showPriceDropdown, setShowPriceDropdown] = useState(false)
   const priceRef = useRef<HTMLDivElement>(null)
+  const [showAgencyDropdown, setShowAgencyDropdown] = useState(false)
+  const agencyRef = useRef<HTMLDivElement>(null)
   const { user, isAuthenticated } = useAuth()
   const isAgent = user?.role === 'AGENT' || user?.role === 'ADMIN'
 
@@ -172,6 +182,7 @@ export default function ListingsIndexPage() {
     const q = searchParams.get('query') || ''
     const minPrice = searchParams.get('minPrice') || ''
     const maxPrice = searchParams.get('maxPrice') || ''
+    const agency = searchParams.get('agency') || ''
     const minBedsParam = searchParams.get('minBedrooms')
     const minBathsParam = searchParams.get('minBathrooms')
     const minBeds = minBedsParam ? Number(minBedsParam) : NaN
@@ -182,6 +193,7 @@ export default function ListingsIndexPage() {
       query: q,
       minPrice,
       maxPrice,
+      agency,
       bedrooms: Number.isFinite(minBeds)
         ? (BED_OPTIONS.filter(opt => {
             if (opt === 'Studio') return 0 >= minBeds
@@ -218,6 +230,9 @@ export default function ListingsIndexPage() {
       if (cityRef.current && !cityRef.current.contains(event.target as Node)) {
         setShowCityDropdown(false)
       }
+      if (agencyRef.current && !agencyRef.current.contains(event.target as Node)) {
+        setShowAgencyDropdown(false)
+      }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
@@ -227,7 +242,7 @@ export default function ListingsIndexPage() {
   }, [])
 
   const filteredAndSortedListings = useMemo(() => {
-    const { query, minPrice, maxPrice, bedrooms, bathrooms, propertyType, city } = filters
+    const { query, minPrice, maxPrice, bedrooms, bathrooms, propertyType, city, agency } = filters
     
     let filtered = listings.filter((listing) => {
       // Text search
@@ -284,6 +299,15 @@ export default function ListingsIndexPage() {
       // City filter
       if (city) {
         if (listing.city?.toLowerCase() !== city.toLowerCase()) return false
+      }
+      
+      // Agency filter
+      if (agency) {
+        const listingAgencyName = listing.agent?.agencyName
+        if (!listingAgencyName) return false // Skip if no agency name set
+        
+        // Check if listing's agency name matches the selected agency
+        if (listingAgencyName.toLowerCase() !== agency.toLowerCase()) return false
       }
       
       return true
@@ -372,7 +396,8 @@ export default function ListingsIndexPage() {
       bedrooms: [],
       bathrooms: [],
       propertyType: [],
-      city: ''
+      city: '',
+      agency: ''
     })
   }
 
@@ -505,6 +530,10 @@ export default function ListingsIndexPage() {
 
   const getUniqueCities = () => {
     return Array.from(new Set(listings.map(l => l.city).filter(Boolean))).sort()
+  }
+
+  const getUniqueAgencies = () => {
+    return Array.from(new Set(listings.map(l => l.agent?.agencyName).filter(Boolean))).sort()
   }
 
   const getActiveFiltersCount = () => {
@@ -929,6 +958,62 @@ export default function ListingsIndexPage() {
                 </div>
               </div>
 
+              {/* Agency (Themed Dropdown) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-primary">Agency</label>
+                <div className="relative" ref={agencyRef}>
+                  <button
+                    onClick={() => setShowAgencyDropdown(!showAgencyDropdown)}
+                    className={`w-full input text-left flex items-center justify-between ${filters.agency ? 'text-[color:var(--accent-500)]' : 'text-gray-500'}`}
+                  >
+                    {filters.agency || 'All'}
+                    <svg className={`h-4 w-4 transition-transform ${showAgencyDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {showAgencyDropdown && (
+                    <div className="absolute top-full left-0 z-[9999] mt-2 w-64 rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] shadow-lg">
+                      <div className="p-2 space-y-1">
+                        <button
+                          onClick={() => { updateFilter('agency', ''); setShowAgencyDropdown(false) }}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${
+                            !filters.agency ? 'bg-[color:var(--surface-strong)] text-primary border border-[color:var(--surface-strong-border)]' : 'bg-[color:var(--surface-1)] text-secondary hover:bg-[color:var(--surface-hover)]'
+                          }`}
+                        >
+                          All 
+                        </button>
+                        {getUniqueAgencies().map(agency => (
+                          <button
+                            key={agency}
+                            onClick={() => { updateFilter('agency', agency || ''); setShowAgencyDropdown(false) }}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${
+                              filters.agency === agency ? 'bg-[color:var(--surface-strong)] text-primary border border-[color:var(--surface-strong-border)]' : 'bg-[color:var(--surface-1)] text-secondary hover:bg-[color:var(--surface-hover)]'
+                            }`}
+                          >
+                            {agency}
+                          </button>
+                        ))}
+                        <div className="flex justify-between pt-2 border-t border-[color:var(--surface-border)]">
+                          <button
+                            onClick={() => { updateFilter('agency', ''); setShowAgencyDropdown(false) }}
+                            className="px-4 py-2 text-sm font-medium text-[color:var(--accent-500)] border border-[color:var(--accent-500)] rounded-lg hover:bg-[color:var(--accent-500)]/5"
+                          >
+                            Reset
+                          </button>
+                          <button
+                            onClick={() => setShowAgencyDropdown(false)}
+                            className="px-4 py-2 text-sm font-medium text-white bg-[color:var(--accent-500)] rounded-lg hover:bg-[color:var(--accent-500)]/90"
+                          >
+                            Done
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
             </div>
             
             
@@ -1090,6 +1175,21 @@ export default function ListingsIndexPage() {
                         <h3 className="text-xl font-semibold text-gray-900 group-hover:text-[color:var(--brand-600)] transition-colors mb-2">
                           {listing.title}
                         </h3>
+                        
+                        {/* Agency Name - Prominent Display */}
+                        {listing.agent?.agencyName && (
+                          <div className="mb-3">
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color:var(--brand-50)] border border-[color:var(--brand-200)]">
+                              <svg className="h-5 w-5 text-[color:var(--brand-600)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                              </svg>
+                              <span className="text-base font-semibold text-[color:var(--brand-700)]">
+                                {listing.agent.agencyName}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        
                         <div className="space-y-1">
                           {listing.address && (
                             <div className="flex items-center gap-1 text-sm text-gray-600">
@@ -1231,6 +1331,21 @@ export default function ListingsIndexPage() {
                           <h3 className="text-xl font-semibold text-gray-900 group-hover:text-[color:var(--brand-600)] transition-colors mb-2">
                             {listing.title}
                           </h3>
+                          
+                          {/* Agency Name - Prominent Display */}
+                          {listing.agent?.agencyName && (
+                            <div className="mb-3">
+                              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[color:var(--brand-50)] border border-[color:var(--brand-200)]">
+                                <svg className="h-5 w-5 text-[color:var(--brand-600)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                <span className="text-base font-semibold text-[color:var(--brand-700)]">
+                                  {listing.agent.agencyName}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          
                           <div className="space-y-1">
                             {listing.address && (
                               <div className="flex items-center gap-1 text-sm text-gray-600">
