@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { MapPinIcon, GlobeAltIcon, ExclamationTriangleIcon, MapIcon } from '@heroicons/react/24/outline'
+import { MapPinIcon, GlobeAltIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import dynamic from 'next/dynamic'
 
 // Dynamically import Leaflet only on client side
@@ -48,11 +48,65 @@ const createCustomIcon = (color: string = 'red') => {
   })
 }
 
+// Distinctive property pin (teardrop with home glyph) – theme-aware to match upload/details
+// Uses CSS var --accent-500 when available; falls back to provided color
+const createPropertyPinIcon = (color: string = '#7c3aed') => {
+  if (!L) return null
+  return L.divIcon({
+    className: 'custom-property-pin',
+    html: `
+      <div aria-label="Property location" style="
+        position: relative;
+        width: 34px;
+        height: 34px;
+        transform: rotate(-45deg);
+        border-radius: 50% 50% 50% 0;
+        background: var(--accent-500, ${color});
+        border: 3px solid #ffffff;
+        box-shadow: 0 0 0 3px rgba(17,24,39,0.45), 0 6px 14px rgba(0,0,0,0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">
+        <span class="animate-ping" style="
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 38px;
+          height: 38px;
+          transform: translate(-50%, -50%) rotate(45deg);
+          border-radius: 9999px;
+          background: var(--accent-500, ${color});
+          opacity: 0.28;
+          pointer-events: none;
+          z-index: 0;
+        "></span>
+        <div style="
+          transform: rotate(45deg);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          position: relative;
+          z-index: 1;
+        ">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M3 10l9-7 9 7v10a2 2 0 0 1-2 2h-5v-6h-4v6H5a2 2 0 0 1-2-2V10z"></path>
+          </svg>
+        </div>
+      </div>
+    `,
+    iconSize: [34, 34],
+    iconAnchor: [17, 30],
+  })
+}
+
 // Dynamically import the map components to avoid SSR issues
 const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false })
 const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false })
 const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false })
 const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false })
+const MapInstanceBridge = dynamic(() => import('./MapInstanceBridge'), { ssr: false })
 
 interface MapDisplayProps {
   latitude: number | null
@@ -143,22 +197,17 @@ export default function MapDisplay({
   }
 
   const recenterMap = () => {
-    if (mapMarker) {
-      // Try to get the map instance from state first
-      if (mapInstance) {
-        mapInstance.setView([mapMarker.lat, mapMarker.lng], 18)
-        return
-      }
-      
-      // Fallback: find the map instance in the DOM
-      const mapElement = document.querySelector('.leaflet-container')
-      if (mapElement && (mapElement as any)._leaflet_id) {
-        const map = (mapElement as any)._leaflet
-        if (map) {
-          map.setView([mapMarker.lat, mapMarker.lng], 18)
+    if (!mapMarker || !mapInstance) return
+    try { if (typeof mapInstance.invalidateSize === 'function') mapInstance.invalidateSize(true) } catch {}
+    setTimeout(() => {
+      try {
+        if (typeof mapInstance.flyTo === 'function') {
+          mapInstance.flyTo([mapMarker.lat, mapMarker.lng], 18, { duration: 0.25 })
+        } else if (typeof mapInstance.setView === 'function') {
+          mapInstance.setView([mapMarker.lat, mapMarker.lng], 18)
         }
-      }
-    }
+      } catch {}
+    }, 0)
   }
 
   if (!mapMarker) {
@@ -195,16 +244,19 @@ export default function MapDisplay({
           <MapContainer
             center={[mapMarker.lat, mapMarker.lng]}
             zoom={18}
+            zoomControl={false}
             style={{ height: '100%', width: '100%' }}
-            ref={handleMapReady}
+            whenCreated={handleMapReady}
           >
+            {/* Bridge to reliably obtain the Leaflet map instance */}
+            <MapInstanceBridge onReady={handleMapReady} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <Marker 
               position={[mapMarker.lat, mapMarker.lng]}
-              icon={createCustomIcon('#ef4444')}
+              icon={createPropertyPinIcon()}
             >
               <Popup>
                 <div className="text-center">
@@ -224,17 +276,24 @@ export default function MapDisplay({
         </div>
         
         {/* Map controls */}
-        <div className="absolute top-2 right-2 flex flex-col gap-1">
-          <button
-            onClick={recenterMap}
-            className="bg-white hover:bg-gray-50 border border-gray-300 p-2 rounded-lg shadow-lg transition-colors z-10"
-            title="Recenter on location"
-          >
-            <MapIcon className="h-4 w-4 text-gray-700" />
-          </button>
+        <div className="absolute top-2 right-2 z-[1000] pointer-events-none flex flex-col gap-1">
+          {(() => {
+            const canRecenter = Boolean(mapMarker && mapInstance)
+            return (
+              <button
+                onClick={recenterMap}
+                disabled={!canRecenter}
+                className={`pointer-events-auto bg-white border border-gray-300 p-2 rounded-lg shadow-lg transition-colors ${canRecenter ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'}`}
+                title="Recenter on location"
+                aria-label="Recenter on location"
+              >
+                <ArrowPathIcon className="h-4 w-4 text-gray-700" />
+              </button>
+            )
+          })()}
           <button
             onClick={openInMaps}
-            className="bg-white hover:bg-gray-50 border border-gray-300 p-2 rounded-lg shadow-lg transition-colors z-10"
+            className="pointer-events-auto bg-white hover:bg-gray-50 border border-gray-300 p-2 rounded-lg shadow-lg transition-colors"
             title="Open in Google Maps"
           >
             <GlobeAltIcon className="h-4 w-4 text-gray-700" />
@@ -261,23 +320,7 @@ export default function MapDisplay({
             </div>
           </div>
           
-          {/* Action buttons */}
-          <div className="flex gap-2">
-            <button
-              onClick={openInMaps}
-              className="btn-secondary btn-sm flex items-center gap-1"
-            >
-              <GlobeAltIcon className="h-4 w-4" />
-              Open in Maps
-            </button>
-            
-            <button
-              onClick={() => navigator.clipboard.writeText(`${mapMarker.lat}, ${mapMarker.lng}`)}
-              className="btn-secondary btn-sm"
-            >
-              Copy Coordinates
-            </button>
-          </div>
+          
         </div>
       )}
     </div>

@@ -1,5 +1,8 @@
+"use client"
+
 import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 interface WizardWarningModalProps {
   isOpen: boolean
@@ -42,9 +45,9 @@ export default function WizardWarningModal({
 
   if (!isOpen) return null
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 min-h-screen">
-      <div className="relative w-full max-w-md mx-auto rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6 shadow-xl">
+  const overlay = (
+    <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/50 p-4 min-h-screen">
+      <div className="relative w-full max-w-md mx-auto rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6 shadow-xl" role="dialog" aria-modal="true">
         {/* Close button */}
         <button
           onClick={onCancel}
@@ -83,5 +86,8 @@ export default function WizardWarningModal({
       </div>
     </div>
   )
+
+  if (typeof window === 'undefined') return null
+  return createPortal(overlay, document.body)
 }
 

@@ -1387,7 +1387,7 @@ export default function AgentListingReviewPage() {
 
       {/* Error Modal */}
       {showErrorModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/50 p-4">
           <div className="relative w-full max-w-md rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6 shadow-xl">
             {/* Close button */}
             <button

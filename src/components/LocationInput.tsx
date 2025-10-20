@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { MapPinIcon, MagnifyingGlassIcon, ExclamationTriangleIcon, CheckCircleIcon, MapIcon } from '@heroicons/react/24/outline'
+import { MapPinIcon, MagnifyingGlassIcon, ExclamationTriangleIcon, CheckCircleIcon, MapIcon, EyeIcon, EyeSlashIcon, ArrowPathIcon, CursorArrowRaysIcon } from '@heroicons/react/24/outline'
 import { geocodeAddress, formatAddress, isValidCoordinates, type GeocodingResult, type GeocodingError } from '@/lib/geocoding'
 import dynamic from 'next/dynamic'
 
@@ -49,11 +49,65 @@ const createCustomIcon = (color: string = 'red') => {
   })
 }
 
+// New distinctive property pin (teardrop with home glyph) with theme-aware color
+// Uses CSS var --accent-500 when available; falls back to provided color
+const createPropertyPinIcon = (color: string = '#7c3aed') => {
+  if (!L) return null
+  return L.divIcon({
+    className: 'custom-property-pin',
+    html: `
+      <div aria-label="Property location" style="
+        position: relative;
+        width: 34px;
+        height: 34px;
+        transform: rotate(-45deg);
+        border-radius: 50% 50% 50% 0;
+        background: var(--accent-500, ${color});
+        border: 3px solid #ffffff;
+        box-shadow: 0 0 0 3px rgba(17,24,39,0.45), 0 6px 14px rgba(0,0,0,0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">
+        <span class="animate-ping" style="
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 38px;
+          height: 38px;
+          transform: translate(-50%, -50%) rotate(45deg);
+          border-radius: 9999px;
+          background: var(--accent-500, ${color});
+          opacity: 0.28;
+          pointer-events: none;
+          z-index: 0;
+        "></span>
+        <div style="
+          transform: rotate(45deg);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          position: relative;
+          z-index: 1;
+        ">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M3 10l9-7 9 7v10a2 2 0 0 1-2 2h-5v-6h-4v6H5a2 2 0 0 1-2-2V10z"></path>
+          </svg>
+        </div>
+      </div>
+    `,
+    iconSize: [34, 34],
+    iconAnchor: [17, 30],
+  })
+}
+
 // Dynamically import the map components to avoid SSR issues
 const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false })
 const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false })
 const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false })
 const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false })
+const MapInstanceBridge = dynamic(() => import('./MapInstanceBridge'), { ssr: false })
 
 interface LocationInputProps {
   address: string
@@ -89,6 +143,7 @@ export default function LocationInput({
   const [manualLat, setManualLat] = useState('')
   const [manualLng, setManualLng] = useState('')
   const [mapInstance, setMapInstance] = useState<any>(null)
+  const mapRef = useRef<any>(null)
 
   // Initialize map marker from existing coordinates
   useEffect(() => {
@@ -109,6 +164,15 @@ export default function LocationInput({
       // Map is ready, we can use the instance
     }
   }, [showMap, mapInstance])
+
+  // Keep map view in sync when marker/map become available
+  useEffect(() => {
+    if (!showMap || !mapMarker) return
+    const map = mapInstance || mapRef.current
+    if (!map) return
+    try { if (typeof map.invalidateSize === 'function') map.invalidateSize(true) } catch {}
+    try { if (typeof map.setView === 'function') map.setView([mapMarker.lat, mapMarker.lng], 18) } catch {}
+  }, [showMap, mapMarker, mapInstance])
 
   const handleMapReady = (map: any) => {
     setMapInstance(map)
@@ -159,16 +223,9 @@ export default function LocationInput({
 
         // Recenter map to the newly geocoded location if a map is shown
         try {
-          if (mapInstance && typeof mapInstance.setView === 'function') {
-            mapInstance.setView([result.latitude, result.longitude], 18)
-          } else {
-            const mapElement = document.querySelector('.leaflet-container')
-            if (mapElement && (mapElement as any)._leaflet_id) {
-              const map = (mapElement as any)._leaflet
-              if (map && typeof map.setView === 'function') {
-                map.setView([result.latitude, result.longitude], 18)
-              }
-            }
+          const map = mapInstance || mapRef.current
+          if (map && typeof map.setView === 'function') {
+            map.setView([result.latitude, result.longitude], 18)
           }
         } catch {}
       }
@@ -209,42 +266,23 @@ export default function LocationInput({
 
   const recenterMap = () => {
     // Debug: verify recenter click handler fires and log current state
-    try { console.log('[Map] Recenter clicked', { marker: mapMarker, hasMapInstance: !!mapInstance }) } catch {}
-    if (mapMarker) {
-      // Try to get the map instance from state first
-      if (mapInstance) {
-        try {
-          if (typeof mapInstance.invalidateSize === 'function') {
-            mapInstance.invalidateSize(true)
-          }
-          // Use a microtask to ensure size invalidation has applied before moving view
-          setTimeout(() => {
-            if (typeof mapInstance.flyTo === 'function') {
-              mapInstance.flyTo([mapMarker.lat, mapMarker.lng], 18, { duration: 0.25 })
-            } else if (typeof mapInstance.setView === 'function') {
-              mapInstance.setView([mapMarker.lat, mapMarker.lng], 18)
-            }
-          }, 0)
-        } catch {}
-        return
-      }
-      
-      // Fallback: find the map instance in the DOM
-      const mapElement = document.querySelector('.leaflet-container')
-      if (mapElement && (mapElement as any)._leaflet_id) {
-        const map = (mapElement as any)._leaflet
-        if (map) {
-          try { if (typeof map.invalidateSize === 'function') map.invalidateSize(true) } catch {}
-          try {
-            if (typeof map.flyTo === 'function') {
-              map.flyTo([mapMarker.lat, mapMarker.lng], 18, { duration: 0.25 })
-            } else if (typeof map.setView === 'function') {
-              map.setView([mapMarker.lat, mapMarker.lng], 18)
-            }
-          } catch {}
+    try { console.log('[Map] Recenter clicked', { marker: mapMarker, hasMapInstance: !!mapInstance, hasRef: !!mapRef.current }) } catch {}
+    if (!mapMarker) return
+
+    const map = mapInstance || mapRef.current
+    if (!map) return
+
+    try { if (typeof map.invalidateSize === 'function') map.invalidateSize(true) } catch {}
+    // Use a microtask to ensure size invalidation has applied before moving view
+    setTimeout(() => {
+      try {
+        if (typeof map.flyTo === 'function') {
+          map.flyTo([mapMarker.lat, mapMarker.lng], 18, { duration: 0.25 })
+        } else if (typeof map.setView === 'function') {
+          map.setView([mapMarker.lat, mapMarker.lng], 18)
         }
-      }
-    }
+      } catch {}
+    }, 0)
   }
 
   // Default center for Ethiopia (Addis Ababa)
@@ -338,7 +376,11 @@ export default function LocationInput({
             disabled={disabled}
             className="btn btn-secondary flex items-center gap-2"
           >
-            <MapIcon className="h-4 w-4" />
+            {showMap ? (
+              <EyeSlashIcon className="h-4 w-4" />
+            ) : (
+              <EyeIcon className="h-4 w-4" />
+            )}
             {showMap ? 'Hide Map' : 'Show Map'}
           </button>
 
@@ -355,9 +397,14 @@ export default function LocationInput({
                 <MapContainer
                   center={mapMarker ? [mapMarker.lat, mapMarker.lng] : defaultCenter}
                   zoom={mapMarker ? 18 : 10}
+                  zoomControl={false}
                   style={{ height: '100%', width: '100%' }}
                   whenCreated={handleMapReady}
+                  ref={mapRef}
                 >
+                  {/* Bridge to reliably obtain the Leaflet map instance */}
+                  {/** This runs only on client and avoids SSR/ref pitfalls */}
+                  <MapInstanceBridge onReady={handleMapReady} onClick={handleMapClick} />
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -365,7 +412,7 @@ export default function LocationInput({
                   {mapMarker && (
                     <Marker 
                       position={[mapMarker.lat, mapMarker.lng]}
-                      icon={createCustomIcon('#ef4444')}
+                      icon={createPropertyPinIcon()}
                     >
                       <Popup>
                         <div className="text-center">
@@ -393,13 +440,20 @@ export default function LocationInput({
             
           {/* Map controls */}
           <div className="absolute top-2 right-2 z-[1000] pointer-events-none flex flex-col gap-1">
-              <button
-              onClick={recenterMap}
-              className="pointer-events-auto bg-white hover:bg-gray-50 border border-gray-300 p-2 rounded-lg shadow-lg transition-colors"
-                title="Recenter on location"
-              >
-                <MapIcon className="h-4 w-4 text-gray-700" />
-              </button>
+              {(() => {
+                const canRecenter = Boolean(mapMarker && (mapInstance || mapRef.current))
+                return (
+                  <button
+                    onClick={recenterMap}
+                    disabled={!canRecenter}
+                    className={`pointer-events-auto bg-white border border-gray-300 p-2 rounded-lg shadow-lg transition-colors ${canRecenter ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'}`}
+                    title="Recenter on location"
+                    aria-label="Recenter on location"
+                  >
+                    <ArrowPathIcon className="h-4 w-4 text-gray-700" />
+                  </button>
+                )
+              })()}
             </div>
             
             {/* Map instructions */}
@@ -458,7 +512,7 @@ export default function LocationInput({
               className={`btn btn-secondary flex items-center gap-2 ${isSelectingOnMap ? 'opacity-50 cursor-not-allowed' : ''}`}
               title="Select a location by clicking on the map"
             >
-              <MapIcon className="h-4 w-4" />
+              <CursorArrowRaysIcon className="h-4 w-4" />
               {isSelectingOnMap ? 'Click on map…' : 'Select on Map'}
             </button>
           </div>

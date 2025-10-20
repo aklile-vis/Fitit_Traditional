@@ -1,6 +1,9 @@
+"use client"
+
 import { useEffect } from 'react'
 import { CheckCircleIcon, XMarkIcon, PlusIcon, ListBulletIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import { createPortal } from 'react-dom'
 
 interface ListingSuccessModalProps {
   isOpen: boolean
@@ -35,8 +38,8 @@ export default function ListingSuccessModal({
 
   if (!isOpen) return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+  const overlay = (
+    <div className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
       <div className="relative w-full max-w-lg mx-auto rounded-2xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-6 shadow-xl">
         {/* Close button */}
         <button
@@ -87,4 +90,7 @@ export default function ListingSuccessModal({
       </div>
     </div>
   )
+
+  if (typeof window === 'undefined') return null
+  return createPortal(overlay, document.body)
 }
