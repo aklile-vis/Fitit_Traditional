@@ -85,7 +85,7 @@ export default function LocationInput({
   const [geocodingError, setGeocodingError] = useState<string | null>(null)
   const [showMap, setShowMap] = useState(false)
   const [mapMarker, setMapMarker] = useState<MapMarker | null>(null)
-  const [isManualMode, setIsManualMode] = useState(false)
+  const [isSelectingOnMap, setIsSelectingOnMap] = useState(false)
   const [manualLat, setManualLat] = useState('')
   const [manualLng, setManualLng] = useState('')
   const [mapInstance, setMapInstance] = useState<any>(null)
@@ -96,6 +96,10 @@ export default function LocationInput({
       setMapMarker({ lat: latitude, lng: longitude })
       setManualLat(latitude.toString())
       setManualLng(longitude.toString())
+      setShowMap(true)
+    } else {
+      setMapMarker(null)
+      setShowMap(false)
     }
   }, [latitude, longitude])
 
@@ -108,19 +112,24 @@ export default function LocationInput({
 
   const handleMapReady = (map: any) => {
     setMapInstance(map)
+    try {
+      if (map && typeof map.on === 'function') {
+        map.on('click', handleMapClick)
+      }
+    } catch {}
   }
 
   // Auto-geocode when address components change
   useEffect(() => {
     const fullAddress = formatAddress({ address, city, subCity, country: 'Ethiopia' })
-    if (fullAddress && fullAddress.length > 10 && !isManualMode) {
+    if (fullAddress && fullAddress.length > 10) {
       const timeoutId = setTimeout(() => {
         handleGeocode(fullAddress)
       }, 1000) // Debounce for 1 second
 
       return () => clearTimeout(timeoutId)
     }
-  }, [address, city, subCity, isManualMode])
+  }, [address, city, subCity])
 
   const handleGeocode = async (addressToGeocode?: string) => {
     const targetAddress = addressToGeocode || formatAddress({ address, city, subCity, country: 'Ethiopia' })
@@ -139,12 +148,14 @@ export default function LocationInput({
       if ('error' in result) {
         setGeocodingError(result.message)
         onLocationChange(null)
+        setShowMap(false)
       } else {
         setMapMarker({ lat: result.latitude, lng: result.longitude })
         setManualLat(result.latitude.toString())
         setManualLng(result.longitude.toString())
         onLocationChange({ latitude: result.latitude, longitude: result.longitude })
         setGeocodingError(null)
+        setShowMap(true)
 
         // Recenter map to the newly geocoded location if a map is shown
         try {
@@ -177,26 +188,44 @@ export default function LocationInput({
       setMapMarker({ lat, lng })
       onLocationChange({ latitude: lat, longitude: lng })
       setGeocodingError(null)
+      setShowMap(true)
     } else {
       setGeocodingError('Invalid coordinates. Latitude must be between -90 and 90, longitude between -180 and 180.')
+      setShowMap(false)
     }
   }
 
   const handleMapClick = (e: any) => {
     if (disabled) return
+    if (!isSelectingOnMap) return
     
     const { lat, lng } = e.latlng
     setManualLat(lat.toFixed(6))
     setManualLng(lng.toFixed(6))
     setMapMarker({ lat, lng })
     onLocationChange({ latitude: lat, longitude: lng })
+    setIsSelectingOnMap(false)
   }
 
   const recenterMap = () => {
+    // Debug: verify recenter click handler fires and log current state
+    try { console.log('[Map] Recenter clicked', { marker: mapMarker, hasMapInstance: !!mapInstance }) } catch {}
     if (mapMarker) {
       // Try to get the map instance from state first
       if (mapInstance) {
-        mapInstance.setView([mapMarker.lat, mapMarker.lng], 18)
+        try {
+          if (typeof mapInstance.invalidateSize === 'function') {
+            mapInstance.invalidateSize(true)
+          }
+          // Use a microtask to ensure size invalidation has applied before moving view
+          setTimeout(() => {
+            if (typeof mapInstance.flyTo === 'function') {
+              mapInstance.flyTo([mapMarker.lat, mapMarker.lng], 18, { duration: 0.25 })
+            } else if (typeof mapInstance.setView === 'function') {
+              mapInstance.setView([mapMarker.lat, mapMarker.lng], 18)
+            }
+          }, 0)
+        } catch {}
         return
       }
       
@@ -205,7 +234,14 @@ export default function LocationInput({
       if (mapElement && (mapElement as any)._leaflet_id) {
         const map = (mapElement as any)._leaflet
         if (map) {
-          map.setView([mapMarker.lat, mapMarker.lng], 18)
+          try { if (typeof map.invalidateSize === 'function') map.invalidateSize(true) } catch {}
+          try {
+            if (typeof map.flyTo === 'function') {
+              map.flyTo([mapMarker.lat, mapMarker.lng], 18, { duration: 0.25 })
+            } else if (typeof map.setView === 'function') {
+              map.setView([mapMarker.lat, mapMarker.lng], 18)
+            }
+          } catch {}
         }
       }
     }
@@ -290,7 +326,7 @@ export default function LocationInput({
             type="button"
             onClick={() => handleGeocode()}
             disabled={disabled || isGeocoding}
-            className="btn-secondary btn-sm flex items-center gap-1"
+            className="btn btn-secondary flex items-center gap-2"
           >
             <MagnifyingGlassIcon className="h-4 w-4" />
             Find Location
@@ -300,10 +336,12 @@ export default function LocationInput({
             type="button"
             onClick={() => setShowMap(!showMap)}
             disabled={disabled}
-            className="btn-secondary btn-sm"
+            className="btn btn-secondary flex items-center gap-2"
           >
+            <MapIcon className="h-4 w-4" />
             {showMap ? 'Hide Map' : 'Show Map'}
           </button>
+
         </div>
       </div>
 
@@ -318,8 +356,7 @@ export default function LocationInput({
                   center={mapMarker ? [mapMarker.lat, mapMarker.lng] : defaultCenter}
                   zoom={mapMarker ? 18 : 10}
                   style={{ height: '100%', width: '100%' }}
-                  onClick={handleMapClick}
-                  ref={handleMapReady}
+                  whenCreated={handleMapReady}
                 >
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -354,11 +391,11 @@ export default function LocationInput({
               )}
             </div>
             
-            {/* Map controls */}
-            <div className="absolute top-2 right-2 flex flex-col gap-1">
+          {/* Map controls */}
+          <div className="absolute top-2 right-2 z-[1000] pointer-events-none flex flex-col gap-1">
               <button
-                onClick={recenterMap}
-                className="bg-white hover:bg-gray-50 border border-gray-300 p-2 rounded-lg shadow-lg transition-colors z-10"
+              onClick={recenterMap}
+              className="pointer-events-auto bg-white hover:bg-gray-50 border border-gray-300 p-2 rounded-lg shadow-lg transition-colors"
                 title="Recenter on location"
               >
                 <MapIcon className="h-4 w-4 text-gray-700" />
@@ -367,7 +404,7 @@ export default function LocationInput({
             
             {/* Map instructions */}
             <div className="absolute bottom-2 left-2 bg-white/90 px-2 py-1 rounded text-xs text-gray-600">
-              Click on the map to set exact location
+              {isSelectingOnMap ? 'Click on the map to select location' : 'Use "Select on Map" to pick a location'}
             </div>
           </div>
 
@@ -409,18 +446,20 @@ export default function LocationInput({
               type="button"
               onClick={handleManualCoordinates}
               disabled={disabled}
-              className="btn-secondary btn-sm"
+              className="btn btn-secondary flex items-center gap-2"
             >
+              <MapPinIcon className="h-4 w-4" />
               Update from Coordinates
             </button>
-            
             <button
               type="button"
-              onClick={() => setIsManualMode(!isManualMode)}
-              disabled={disabled}
-              className={`btn-sm ${isManualMode ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => { setShowMap(true); setIsSelectingOnMap(true) }}
+              disabled={disabled || isSelectingOnMap}
+              className={`btn btn-secondary flex items-center gap-2 ${isSelectingOnMap ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Select a location by clicking on the map"
             >
-              {isManualMode ? 'Auto Mode' : 'Manual Mode'}
+              <MapIcon className="h-4 w-4" />
+              {isSelectingOnMap ? 'Click on map…' : 'Select on Map'}
             </button>
           </div>
         </div>
