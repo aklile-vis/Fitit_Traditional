@@ -71,7 +71,6 @@ export async function POST(request: NextRequest) {
       basePrice,
       currency,
       coverImage: body.coverImage ?? null,
-      has3D: body.immersive?.has3D ?? false,
       // Default to not published, agent can publish explicitly
       isPublished: body.isPublished ?? false,
       // Store amenities and features as JSON strings
@@ -99,7 +98,6 @@ export async function POST(request: NextRequest) {
         const editorState = {
           ...(unit.editorState as any || {}),
           immersive: {
-            has3D: body.immersive.has3D || false,
           }
         }
         await prisma.propertyUnit.update({
@@ -111,7 +109,6 @@ export async function POST(request: NextRequest) {
       // If no unitId, create a new PropertyUnit for this listing
       const editorState = body.immersive ? {
         immersive: {
-          has3D: body.immersive.has3D || false,
           glbPath: body.immersive.glbPath || null,
           ifcPath: body.immersive.ifcPath || null,
           usdPath: body.immersive.usdPath || null,

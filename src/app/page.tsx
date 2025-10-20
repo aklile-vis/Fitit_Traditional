@@ -50,7 +50,6 @@ type Listing = {
   bathrooms?: number | null
   areaSqm?: number | null
   currency?: string | null
-  has3D?: boolean
 }
 
 type Filters = {
@@ -59,7 +58,6 @@ type Filters = {
   maxPrice: string
   bedrooms: string[]
   bathrooms: string[]
-  has3D: string // '', 'yes', 'no'
   city: string
 }
 
@@ -75,16 +73,13 @@ export default function HomePage() {
     maxPrice: '',
     bedrooms: [],
     bathrooms: [],
-    has3D: '',
     city: ''
   })
 
   const bedBathRef = useRef<HTMLDivElement>(null)
-  const has3DRef = useRef<HTMLDivElement>(null)
   const priceRef = useRef<HTMLDivElement>(null)
   const cityRef = useRef<HTMLDivElement>(null)
   const [showBedBathDropdown, setShowBedBathDropdown] = useState(false)
-  const [showHas3DDropdown, setShowHas3DDropdown] = useState(false)
   const [showPriceDropdown, setShowPriceDropdown] = useState(false)
   const [showCityDropdown, setShowCityDropdown] = useState(false)
 
@@ -110,7 +105,7 @@ export default function HomePage() {
   }, [])
 
   const filteredListings = useMemo(() => {
-    const { query, minPrice, maxPrice, bedrooms, bathrooms, has3D, city } = filters
+    const { query, minPrice, maxPrice, bedrooms, bathrooms, city } = filters
     const min = minPrice ? Number(minPrice) : undefined
     const max = maxPrice ? Number(maxPrice) : undefined
 
@@ -142,13 +137,10 @@ export default function HomePage() {
           })()
         : true
       // 3D availability
-      const matchesHas3D = has3D
-        ? (has3D === 'yes' ? !!listing.has3D : !listing.has3D)
-        : true
       // City
       const matchesCity = city ? (listing.city || '').toLowerCase() === city.toLowerCase() : true
 
-      return matchesQuery && matchesMin && matchesMax && matchesBeds && matchesBaths && matchesHas3D && matchesCity
+      return matchesQuery && matchesMin && matchesMax && matchesBeds && matchesBaths && matchesCity
     })
   }, [filters, listings])
 
@@ -182,7 +174,6 @@ export default function HomePage() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (bedBathRef.current && !bedBathRef.current.contains(event.target as Node)) setShowBedBathDropdown(false)
-      if (has3DRef.current && !has3DRef.current.contains(event.target as Node)) setShowHas3DDropdown(false)
       if (priceRef.current && !priceRef.current.contains(event.target as Node)) setShowPriceDropdown(false)
       if (cityRef.current && !cityRef.current.contains(event.target as Node)) setShowCityDropdown(false)
     }
@@ -230,7 +221,6 @@ export default function HomePage() {
                 const values = filters.bathrooms.map(b => b === '6+' ? 6 : Number(b)).filter(n => Number.isFinite(n)) as number[]
                 return Math.min(...values)
               })() } : {}),
-              ...(filters.has3D ? { has3D: filters.has3D } : {}),
               ...(filters.city ? { city: filters.city } : {}),
             }}} className="btn btn-primary px-5 py-2 text-xs">
               Browse all listings
@@ -322,30 +312,6 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* 3D Tour (Dropdown) */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-medium uppercase tracking-wide text-muted">3D Tour</label>
-                  <div className="relative" ref={has3DRef}>
-                    <button
-                      onClick={() => setShowHas3DDropdown(!showHas3DDropdown)}
-                      className={`w-full input text-left flex items-center justify-between ${filters.has3D ? 'text-[color:var(--accent-500)]' : 'text-gray-500'}`}
-                    >
-                      {filters.has3D === 'yes' ? '3D Available' : filters.has3D === 'no' ? 'Standard Only' : 'Any'}
-                      <svg className={`h-4 w-4 transition-transform ${showHas3DDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {showHas3DDropdown && (
-                      <div className="absolute top-full left-0 z-[9999] mt-2 w-64 rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] shadow-lg">
-                        <div className="p-4 space-y-2">
-                          <button onClick={() => setFilters(prev => ({ ...prev, has3D: '' }))} className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${!filters.has3D ? 'bg-[color:var(--surface-strong)] text-primary border border-[color:var(--surface-strong-border)]' : 'bg-[color:var(--surface-1)] text-secondary hover:bg-[color:var(--surface-hover)]'}`}>Any</button>
-                          <button onClick={() => setFilters(prev => ({ ...prev, has3D: 'yes' }))} className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${filters.has3D === 'yes' ? 'bg-[color:var(--surface-strong)] text-primary border border-[color:var(--surface-strong-border)]' : 'bg-[color:var(--surface-1)] text-secondary hover:bg-[color:var(--surface-hover)]'}`}>3D Available</button>
-                          <button onClick={() => setFilters(prev => ({ ...prev, has3D: 'no' }))} className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition ${filters.has3D === 'no' ? 'bg-[color:var(--surface-strong)] text-primary border border-[color:var(--surface-strong-border)]' : 'bg-[color:var(--surface-1)] text-secondary hover:bg-[color:var(--surface-hover)]'}`}>Standard Only</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
 
                 {/* Beds & Baths (Dropdown) */}
                 <div className="space-y-1.5" ref={bedBathRef}>
@@ -487,18 +453,6 @@ export default function HomePage() {
                     )}
                     {/* Status Tags (match listings grid) */}
                     <div className="absolute left-4 top-4 flex flex-col gap-2">
-                      {listing.has3D ? (
-                        <div className="inline-flex items-center gap-1 rounded-full bg-[color:var(--brand-600)] px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                          <Square3Stack3DIcon className="h-3 w-3" />
-                          Immersive Ready
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-1 rounded-full bg-gray-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                          <BuildingOffice2Icon className="h-3 w-3" />
-                          Standard Listing
-                        </div>
-                      )}
-                    </div>
                   </div>
                   <div className="flex flex-1 flex-col gap-3 px-5 pb-6 pt-5 text-sm text-primary">
                     <div className="space-y-1">

@@ -315,7 +315,6 @@ export default function AgentUploadMediaPage() {
           coverImage: coverImageUrl,
         },
         immersive: {
-          has3D: false,
           glbPath: undefined,
           ifcPath: undefined,
           usdPath: undefined,

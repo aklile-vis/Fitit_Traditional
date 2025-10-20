@@ -147,7 +147,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           Array.isArray(body.features) ? (JSON.stringify(body.features) as any) : undefined,
         floorPlans:
           Array.isArray(body.floorPlans) ? (JSON.stringify(body.floorPlans) as any) : undefined,
-        has3D: typeof body.immersive?.has3D === 'boolean' ? body.immersive.has3D : undefined,
       }
     })
 

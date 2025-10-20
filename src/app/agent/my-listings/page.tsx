@@ -27,7 +27,6 @@ type Listing = {
   basePrice: number
   currency?: string | null
   coverImage?: string | null
-  has3D?: boolean
   isPublished?: boolean
 }
 
@@ -137,8 +136,8 @@ export default function MyListingsPage() {
                   <div className="text-sm text-muted">Published</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-[color:var(--brand-600)]">{listings.filter(l => l.has3D).length}</div>
-                  <div className="text-sm text-muted">3D Ready</div>
+                  <div className="text-2xl font-bold text-[color:var(--brand-600)]">{listings.length}</div>
+                  <div className="text-sm text-muted">Total Listings</div>
                 </div>
               </div>
             </div>
@@ -229,12 +228,6 @@ export default function MyListingsPage() {
 
                     {/* Type Badge + Actions */}
                     <div className="absolute right-4 top-4 z-10 flex items-center gap-3">
-                      {listing.has3D && (
-                        <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[color:var(--brand-600)] to-[color:var(--brand-500)] px-4 py-2 text-xs font-bold text-white shadow-lg backdrop-blur-sm">
-                          <Square3Stack3DIcon className="h-4 w-4" />
-                          Immersive Ready
-                        </div>
-                      )}
 
                       {/* Quick actions menu */}
                       <div className="relative" ref={(el) => { menuRefs.current[listing.id] = el }}>

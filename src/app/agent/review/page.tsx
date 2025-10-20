@@ -319,7 +319,6 @@ export default function AgentListingReviewPage() {
           coverImage: updatedParsed?.media?.coverImage || null,
         },
         immersive: {
-          has3D: false,
           glbPath: undefined,
           ifcPath: undefined,
           usdPath: undefined,
@@ -528,7 +527,6 @@ export default function AgentListingReviewPage() {
         features: draft?.features || [],
         isPublished: true, // Mark as published when submitted from here
         immersive: {
-          has3D: false,
           glbPath: undefined,
           ifcPath: undefined,
           usdPath: undefined,

@@ -275,7 +275,6 @@ export type ListingReviewShape = {
     coverImage: string
   }
   immersive: {
-    has3D: boolean
     glbPath?: string
     viewerLink?: string
     processedAt?: string
@@ -411,7 +410,6 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
       coverImage: realData.coverImage || ''
     },
     immersive: {
-      has3D: realData.has3D || false,
       glbPath: realUnit?.fileUpload?.glbPath || '',
       viewerLink: `/listings/${realData.id}`,
       processedAt: realData.updatedAt?.toString() || ''

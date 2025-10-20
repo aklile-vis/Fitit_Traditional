@@ -2,10 +2,8 @@
 
 import {
   ArrowTopRightOnSquareIcon,
-  BuildingOffice2Icon,
   MapPinIcon,
   ArrowsPointingOutIcon,
-  Square3Stack3DIcon,
   CurrencyDollarIcon,
   PhotoIcon,
   FunnelIcon,
@@ -138,8 +136,6 @@ export default function ListingsIndexPage() {
   const [propertyCategory, setPropertyCategory] = useState<'Residential' | 'Commercial'>('Residential')
   const bedBathRef = useRef<HTMLDivElement>(null)
   const propertyTypeRef = useRef<HTMLDivElement>(null)
-  const [showHas3DDropdown, setShowHas3DDropdown] = useState(false)
-  const has3DRef = useRef<HTMLDivElement>(null)
   const [showCityDropdown, setShowCityDropdown] = useState(false)
   const cityRef = useRef<HTMLDivElement>(null)
   const [showPriceDropdown, setShowPriceDropdown] = useState(false)
@@ -216,9 +212,6 @@ export default function ListingsIndexPage() {
       if (propertyTypeRef.current && !propertyTypeRef.current.contains(event.target as Node)) {
         setShowPropertyTypeDropdown(false)
       }
-      if (has3DRef.current && !has3DRef.current.contains(event.target as Node)) {
-        setShowHas3DDropdown(false)
-      }
       if (priceRef.current && !priceRef.current.contains(event.target as Node)) {
         setShowPriceDropdown(false)
       }
@@ -234,7 +227,7 @@ export default function ListingsIndexPage() {
   }, [])
 
   const filteredAndSortedListings = useMemo(() => {
-    const { query, minPrice, maxPrice, bedrooms, bathrooms, propertyType, has3D, city } = filters
+    const { query, minPrice, maxPrice, bedrooms, bathrooms, propertyType, city } = filters
     
     let filtered = listings.filter((listing) => {
       // Text search
@@ -287,12 +280,6 @@ export default function ListingsIndexPage() {
         if (!matchesPropertyType) return false
       }
       
-      // 3D availability
-      if (has3D) {
-        const wants3D = has3D === 'yes'
-        if (wants3D && !listing.has3D) return false
-        if (!wants3D && listing.has3D) return false
-      }
       
       // City filter
       if (city) {
@@ -555,9 +542,9 @@ export default function ListingsIndexPage() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.25em] text-muted">Marketplace</p>
-            <h1 className="mt-3 text-3xl font-semibold sm:text-4xl text-primary">Premium listings ready for 3D exploration</h1>
+            <h1 className="mt-3 text-3xl font-semibold sm:text-4xl text-primary">Premium property listings</h1>
             <p className="mt-3 max-w-2xl text-sm text-secondary">
-              Explore immersive-ready inventory processed through EstatePro. Every listing includes a GLB model, IFC export, and customizable material library.
+              Discover exceptional properties with detailed information, high-quality images, and comprehensive property details.
             </p>
           </div>
           {isAuthenticated && user?.role === 'AGENT' && (
@@ -942,71 +929,6 @@ export default function ListingsIndexPage() {
                 </div>
               </div>
 
-              {/* 3D Filter - Dropdown (in-grid) */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-primary">3D Tour</label>
-                <div className="relative" ref={has3DRef}>
-                  <button
-                    onClick={() => setShowHas3DDropdown(!showHas3DDropdown)}
-                    className={`w-full input text-left flex items-center justify-between ${filters.has3D ? 'text-[color:var(--accent-500)]' : 'text-gray-500'}`}
-                  >
-                    {filters.has3D === 'yes' ? '3D Available' : filters.has3D === 'no' ? 'Standard Only' : 'Any'}
-                    <svg className={`h-4 w-4 transition-transform ${showHas3DDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {showHas3DDropdown && (
-                    <div className="absolute top-full left-0 z-[9999] mt-2 w-64 rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] shadow-lg">
-                      <div className="p-4 space-y-2">
-                      <button
-                        onClick={() => updateFilter('has3D', '')}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                          filters.has3D === '' ? 'bg-[color:var(--surface-strong)] text-primary border border-[color:var(--surface-strong-border)]' : 'bg-[color:var(--surface-1)] text-secondary hover:bg-[color:var(--surface-hover)]'
-                        }`}
-                      >
-                        Any
-                      </button>
-                      <button
-                        onClick={() => updateFilter('has3D', 'yes')}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                          filters.has3D === 'yes' ? 'bg-[color:var(--surface-strong)] text-primary border border-[color:var(--surface-strong-border)]' : 'bg-[color:var(--surface-1)] text-secondary hover:bg-[color:var(--surface-hover)]'
-                        }`}
-                      >
-                        3D Available
-                      </button>
-                      <button
-                        onClick={() => updateFilter('has3D', 'no')}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                          filters.has3D === 'no' ? 'bg-[color:var(--surface-strong)] text-primary border border-[color:var(--surface-strong-border)]' : 'bg-[color:var(--surface-1)] text-secondary hover:bg-[color:var(--surface-hover)]'
-                        }`}
-                      >
-                        Standard Only
-                      </button>
-
-                        {/* Actions */}
-                        <div className="flex justify-between pt-3 border-t border-[color:var(--surface-border)]">
-                          <button
-                            onClick={() => {
-                              updateFilter('has3D', '')
-                              setShowHas3DDropdown(false)
-                            }}
-                            className="px-4 py-2 text-sm font-medium text-[color:var(--accent-500)] border border-[color:var(--accent-500)] rounded-lg hover:bg-[color:var(--accent-500)]/5"
-                          >
-                            Reset
-                          </button>
-                          <button
-                            onClick={() => setShowHas3DDropdown(false)}
-                            className="px-4 py-2 text-sm font-medium text-white bg-[color:var(--accent-500)] rounded-lg hover:bg-[color:var(--accent-500)]/90"
-                          >
-                            Done
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
             
             
@@ -1159,15 +1081,6 @@ export default function ListingsIndexPage() {
                         </div>
                       </div>
                       
-                      {/* Status Tags */}
-                      <div className="absolute left-4 top-4 flex flex-col gap-2">
-                        {listing.has3D && (
-                          <div className="inline-flex items-center gap-1 rounded-full bg-[color:var(--brand-600)] px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                            <Square3Stack3DIcon className="h-3 w-3" />
-                            Immersive Ready
-                          </div>
-                        )}
-                      </div>
                     </div>
 
                     {/* Content Section */}
@@ -1308,15 +1221,6 @@ export default function ListingsIndexPage() {
                         </div>
                       </div>
                       
-                      {/* Status Tags */}
-                      <div className="absolute left-4 top-4 flex flex-col gap-2">
-                        {listing.has3D && (
-                          <div className="inline-flex items-center gap-1 rounded-full bg-[color:var(--brand-600)] px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                            <Square3Stack3DIcon className="h-3 w-3" />
-                            Immersive Ready
-                          </div>
-                        )}
-                      </div>
                     </div>
 
                     {/* Content Section */}

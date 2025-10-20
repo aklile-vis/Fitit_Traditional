@@ -28,7 +28,6 @@ type Listing = {
   basePrice: number
   currency?: string | null
   coverImage?: string | null
-  has3D?: boolean
 }
 
 export default function SavedListingsPage() {
@@ -186,8 +185,8 @@ export default function SavedListingsPage() {
                   <div className="text-sm text-muted">Saved Properties</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-[color:var(--brand-600)]">{list.filter(l => l.has3D).length}</div>
-                  <div className="text-sm text-muted">3D Ready</div>
+                  <div className="text-2xl font-bold text-[color:var(--brand-600)]">{list.length}</div>
+                  <div className="text-sm text-muted">Total Saved</div>
                 </div>
               </div>
             </div>
@@ -317,18 +316,6 @@ export default function SavedListingsPage() {
                         
                         {/* Status Badge */}
                         <div className="absolute left-4 top-4">
-                          {listing.has3D ? (
-                            <div className="inline-flex items-center gap-1 rounded-full bg-[color:var(--brand-600)] px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                              <Square3Stack3DIcon className="h-3 w-3" />
-                              Immersive Ready
-                            </div>
-                          ) : (
-                            <div className="inline-flex items-center gap-1 rounded-full bg-gray-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                              <BuildingOffice2Icon className="h-3 w-3" />
-                              Standard Listing
-                            </div>
-                          )}
-                        </div>
                       </div>
                       {/* Content */}
                       <div className="flex flex-1 flex-col gap-3 px-5 pb-5 pt-4 text-sm text-primary">
