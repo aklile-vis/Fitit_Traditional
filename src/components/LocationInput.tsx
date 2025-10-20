@@ -145,6 +145,21 @@ export default function LocationInput({
         setManualLng(result.longitude.toString())
         onLocationChange({ latitude: result.latitude, longitude: result.longitude })
         setGeocodingError(null)
+
+        // Recenter map to the newly geocoded location if a map is shown
+        try {
+          if (mapInstance && typeof mapInstance.setView === 'function') {
+            mapInstance.setView([result.latitude, result.longitude], 18)
+          } else {
+            const mapElement = document.querySelector('.leaflet-container')
+            if (mapElement && (mapElement as any)._leaflet_id) {
+              const map = (mapElement as any)._leaflet
+              if (map && typeof map.setView === 'function') {
+                map.setView([result.latitude, result.longitude], 18)
+              }
+            }
+          }
+        } catch {}
       }
     } catch (error) {
       setGeocodingError('Failed to geocode address')

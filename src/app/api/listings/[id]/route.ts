@@ -132,6 +132,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         address: body.address ?? undefined,
         city: body.city ?? undefined,
         subCity: body.subCity ?? undefined,
+        // Persist updated coordinates when provided
+        latitude: body.latitude ?? undefined,
+        longitude: body.longitude ?? undefined,
         bedrooms: parseBedrooms(body.bedrooms),
         bathrooms: parseBathrooms(body.bathrooms),
         areaSqm: body.areaSqm ?? undefined,

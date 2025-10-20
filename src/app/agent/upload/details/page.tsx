@@ -567,7 +567,10 @@ export default function AgentUploadDetailsPage() {
                 ...prev,
                 address: addressData.address,
                 city: addressData.city,
-                subCity: addressData.subCity
+                subCity: addressData.subCity,
+                // Clear coordinates so fresh geocode updates them
+                latitude: null,
+                longitude: null,
               }))
             }}
           />
