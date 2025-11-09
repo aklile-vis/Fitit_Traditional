@@ -4,7 +4,7 @@ import { createUser, findUserByEmail } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, name, role, inviteCode } = await request.json()
+    const { email, password, name, role, inviteCode, phone, agencyName } = await request.json()
 
     if (!email || !password) {
       return NextResponse.json(
@@ -35,7 +35,23 @@ export async function POST(request: NextRequest) {
       finalRole = requestedRole
     }
 
-    const user = await createUser(email, password, name, finalRole)
+    // Validate agent-specific required fields
+    if (finalRole === 'AGENT') {
+      if (!phone || typeof phone !== 'string' || !phone.trim()) {
+        return NextResponse.json(
+          { error: 'Phone number is required for agents' },
+          { status: 400 }
+        )
+      }
+      if (!agencyName || typeof agencyName !== 'string' || !agencyName.trim()) {
+        return NextResponse.json(
+          { error: 'Agency name is required for agents' },
+          { status: 400 }
+        )
+      }
+    }
+
+    const user = await createUser(email, password, name, finalRole, phone?.trim(), agencyName?.trim())
     
     return NextResponse.json({
       message: 'User created successfully',

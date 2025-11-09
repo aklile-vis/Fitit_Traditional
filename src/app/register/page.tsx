@@ -3,9 +3,10 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 import { useAuth } from '@/contexts/AuthContext'
+import { countriesFull as countries, isoToFlag, isoToTwemojiUrl } from '@/lib/countries'
 
 const ROLE_OPTIONS = [
   { value: 'USER', label: 'Buyer' },
@@ -21,15 +22,49 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<'USER' | 'AGENT'>('USER')
   const [inviteCode, setInviteCode] = useState('')
+  const [dialCode, setDialCode] = useState<string>('+251')
+  const [localPhone, setLocalPhone] = useState<string>('')
+  const [isCountryOpen, setIsCountryOpen] = useState(false)
+  const countryRef = useRef<HTMLDivElement | null>(null)
+  const [agencyName, setAgencyName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Close country dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (countryRef.current && !countryRef.current.contains(event.target as Node)) {
+        setIsCountryOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)
     setIsSubmitting(true)
 
+    // Validate agent-specific required fields
+    if (role === 'AGENT') {
+      const cleanLocal = (localPhone || '').replace(/[^0-9]/g, '')
+      const cleanDial = dialCode?.startsWith('+') ? dialCode : `+${dialCode || ''}`
+      const fullPhone = cleanLocal ? `${cleanDial}${cleanLocal}` : ''
+      
+      if (!fullPhone || !agencyName.trim()) {
+        setError('Phone number and agency name are required for agents')
+        setIsSubmitting(false)
+        return
+      }
+    }
+
     try {
+      // Build phone number from dial code + local number
+      const cleanLocal = (localPhone || '').replace(/[^0-9]/g, '')
+      const cleanDial = dialCode?.startsWith('+') ? dialCode : `+${dialCode || ''}`
+      const fullPhone = cleanLocal ? `${cleanDial}${cleanLocal}` : ''
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -39,6 +74,8 @@ export default function RegisterPage() {
           password,
           role,
           inviteCode: role === 'AGENT' ? inviteCode.trim() || undefined : undefined,
+          phone: role === 'AGENT' ? fullPhone : undefined,
+          agencyName: role === 'AGENT' ? agencyName.trim() : undefined,
         }),
       })
 
@@ -183,21 +220,122 @@ export default function RegisterPage() {
 
 
             {role === 'AGENT' && (
-              <div className="space-y-1.5">
-                <label htmlFor="invite" className="block text-xs font-medium uppercase tracking-wide text-muted">
-                  Agent invite code
-                </label>
-                <input
-                  id="invite"
-                  name="invite"
-                  type="text"
-                  required
-                  placeholder="Provided by your administrator"
-                  value={inviteCode}
-                  onChange={(event) => setInviteCode(event.target.value)}
-                  className="input text-sm"
-                />
-              </div>
+              <>
+                <div className="space-y-1.5">
+                  <label htmlFor="invite" className="block text-xs font-medium uppercase tracking-wide text-muted">
+                    Agent invite code
+                  </label>
+                  <input
+                    id="invite"
+                    name="invite"
+                    type="text"
+                    required
+                    placeholder="Provided by your administrator"
+                    value={inviteCode}
+                    onChange={(event) => setInviteCode(event.target.value)}
+                    className="input text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="phone" className="block text-xs font-medium uppercase tracking-wide text-muted">
+                    Phone Number
+                  </label>
+                  <div className="input flex items-stretch p-0 h-11 overflow-visible focus-within:ring-2 focus-within:ring-[var(--accent-500)]">
+                    {/* Country / Dial Code Selector */}
+                    <div className="relative shrink-0" ref={countryRef}>
+                      <button
+                        type="button"
+                        className="relative flex w-16 sm:w-20 md:w-24 items-center justify-start pl-2 pr-2 sm:pl-3 sm:pr-10 bg-transparent border-r border-[color:var(--surface-border-strong)] h-full"
+                        onClick={() => setIsCountryOpen((v) => !v)}
+                        aria-haspopup="listbox"
+                        aria-expanded={isCountryOpen}
+                        title={dialCode}
+                      >
+                        <span className="flex items-center gap-1 whitespace-nowrap mr-8 sm:mr-10">
+                          {(() => {
+                            const c = countries.find((x) => x.dialCode === dialCode) || countries.find((x) => x.iso2 === 'ET')
+                            if (!c) return <span className="emoji-text">🏳️</span>
+                            const url = isoToTwemojiUrl(c.iso2, 'svg')
+                            return url ? (
+                              <img src={url} alt={isoToFlag(c.iso2)} className="h-4 w-4" />
+                            ) : (
+                              <span className="emoji-text">{isoToFlag(c.iso2)}</span>
+                            )
+                          })()}
+                          <span className="text-sm text-primary">{dialCode}</span>
+                        </span>
+                        <svg className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                      {isCountryOpen && (
+                        <div className="absolute left-0 z-50 mt-1 min-w-[12rem] sm:w-full rounded-xl border border-[color:var(--surface-border)] bg-white shadow-lg">
+                          <ul role="listbox" className="max-h-60 overflow-auto p-1">
+                            {(() => {
+                              const sorted = [...countries].sort((a, b) => a.name.localeCompare(b.name))
+                              return sorted.map((c) => (
+                                <li
+                                  key={c.iso2}
+                                  role="option"
+                                  className="px-2 py-2 cursor-pointer hover:bg-gray-50 rounded-lg flex items-center justify-between"
+                                  onClick={() => {
+                                    setDialCode(c.dialCode)
+                                    setIsCountryOpen(false)
+                                  }}
+                                >
+                                  <span className="flex items-center gap-1 text-sm">
+                                    {(() => {
+                                      const url = isoToTwemojiUrl(c.iso2, 'svg')
+                                      return url ? (
+                                        <img src={url} alt={isoToFlag(c.iso2)} className="h-4 w-4" />
+                                      ) : (
+                                        <span className="emoji-text">{isoToFlag(c.iso2)}</span>
+                                      )
+                                    })()}
+                                    <span className="text-primary">{c.name}</span>
+                                  </span>
+                                  <span className="text-xs text-secondary">{c.dialCode}</span>
+                                </li>
+                              ))
+                            })()}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                    {/* Local phone number */}
+                    <input
+                      id="phone"
+                      name="phone"
+                      className="flex-1 min-w-0 bg-transparent border-0 outline-none px-3"
+                      value={localPhone}
+                      onChange={(e) => setLocalPhone(e.target.value)}
+                      placeholder="Local number"
+                      inputMode="tel"
+                      required
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-muted">
+                    This number will be used to connect with you via Telegram and WhatsApp for property inquiries.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="agency" className="block text-xs font-medium uppercase tracking-wide text-muted">
+                    Agency Name
+                  </label>
+                  <input
+                    id="agency"
+                    name="agency"
+                    type="text"
+                    required
+                    placeholder="Your agency"
+                    value={agencyName}
+                    onChange={(event) => setAgencyName(event.target.value)}
+                    className="input text-sm"
+                  />
+                </div>
+              </>
             )}
 
             <motion.button

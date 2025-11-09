@@ -72,16 +72,39 @@ export function verifyToken(token: string): User | null {
   }
 }
 
-export async function createUser(email: string, password: string, name?: string, role: 'USER' | 'AGENT' | 'ADMIN' = 'USER') {
+export async function createUser(
+  email: string,
+  password: string,
+  name?: string,
+  role: 'USER' | 'AGENT' | 'ADMIN' = 'USER',
+  phone?: string,
+  agencyName?: string
+) {
   const hashedPassword = await hashPassword(password)
   
-  return prisma.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-      name,
-      role
+  // Use transaction to create user and profile together
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name,
+        role
+      }
+    })
+
+    // Create profile if phone or agencyName is provided
+    if (phone || agencyName) {
+      await tx.userProfile.create({
+        data: {
+          userId: user.id,
+          phone: phone || null,
+          agencyName: agencyName || null,
+        }
+      })
     }
+
+    return user
   })
 }
 
