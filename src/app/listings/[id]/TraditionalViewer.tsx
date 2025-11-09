@@ -869,10 +869,7 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
           <h2 className="text-2xl font-semibold text-primary">Property Gallery</h2>
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {media.images.map((path: string, index: number) => {
-              const imageUrl = path.startsWith('http') 
-                ? path 
-                : `/api/files/binary?path=${encodeURIComponent(path)}`
-              const isCoverImage = media.coverImage === path
+              const imageUrl = toAbsolute(path)
               
               return (
                 <figure
@@ -888,11 +885,6 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
                     alt={`Property photo ${index + 1}`}
                     className="h-56 w-full object-cover transition duration-300 group-hover:scale-105"
                   />
-                  {isCoverImage && (
-                    <div className="absolute left-2 top-2 rounded-full bg-[color:var(--accent-500)] px-2 py-1 text-xs font-medium text-white">
-                      Cover Photo
-                    </div>
-                  )}
                   <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
                 </figure>
               )
@@ -1126,7 +1118,7 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
 
         return (
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4"
             role="dialog"
             aria-modal="true"
             onClick={closeViewer}
@@ -1136,14 +1128,14 @@ export default function TraditionalViewer({ listing }: { listing?: ListingUnitPa
               type="button"
               onClick={closeViewer}
               aria-label="Close viewer"
-              className="fixed right-6 top-6 z-20 rounded-full bg-black/90 backdrop-blur-sm border border-white/20 p-4 text-white hover:bg-black hover:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/60 transition-all duration-200 shadow-lg"
+              className="fixed right-6 top-6 z-[10000] rounded-full bg-black/90 backdrop-blur-sm border border-white/20 p-4 text-white hover:bg-black hover:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/60 transition-all duration-200 shadow-lg"
             >
               <XMarkIcon className="h-6 w-6" />
             </button>
 
             {/* Navigation arrows - fixed to bottom of screen */}
             {totalCount > 1 && (
-              <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
+              <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[10000] pointer-events-none">
                 <div className="inline-flex items-center gap-3 rounded-full bg-black/90 backdrop-blur-sm border border-white/20 px-4 py-3 pointer-events-auto shadow-lg">
                   <button
                     type="button"
