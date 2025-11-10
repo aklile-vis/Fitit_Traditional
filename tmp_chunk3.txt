@@ -1,0 +1,89 @@
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        
+        {listingsWithCoords.map((listing) => (
+          <HoverableMarker
+            key={listing.id}
+            listing={listing}
+            onHover={handleMarkerHover}
+            onHoverOut={handleMarkerHoverOut}
+            onClick={handleMarkerClick}
+          />
+        ))}
+      </MapContainer>
+      
+      {/* Custom Hover Card */}
+      {hoveredListing && hoverPosition && (
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            left: `${hoverPosition.x}px`,
+            top: `${hoverPosition.y}px`,
+            transform: 'translate(-50%, -100%)',
+            zIndex: 10000,
+          }}
+        >
+          <div
+            className="bg-white rounded-lg shadow-2xl border-2 border-gray-300 overflow-hidden pointer-events-auto transition-all duration-200"
+            style={{ minWidth: '280px', maxWidth: '320px' }}
+            onMouseEnter={() => setHoveredListingId(hoveredListing.id)}
+            onMouseLeave={handleMarkerHoverOut}
+          >
+            {/* Image */}
+            {hoveredImageSrc ? (
+              <div className="relative h-40 w-full">
+                <Image
+                  src={hoveredImageSrc}
+                  alt={hoveredListing.title}
+                  fill
+                  className="object-cover"
+                  sizes="320px"
+                />
+              </div>
+            ) : (
+              <div className="h-40 w-full bg-gray-200 flex items-center justify-center">
+                <p className="text-sm text-gray-500">No Image</p>
+              </div>
+            )}
+            
+            {/* Content */}
+            <div className="p-3 space-y-2">
+              {/* Title */}
+              <h3 className="font-semibold text-gray-900 text-sm line-clamp-1">
+                {hoveredListing.title}
+              </h3>
+              
+              {/* Address */}
+              {hoveredListing.address && (
+                <p className="text-xs text-gray-600 line-clamp-1">
+                  {formatAddress(hoveredListing)}
+                </p>
+              )}
+              
+              {/* Price */}
+              <div className="flex items-center gap-1">
+                <span className="text-lg font-bold text-gray-900">
+                  {formatPrice(hoveredListing.basePrice, hoveredListing.currency || 'ETB')}
+                </span>
+              </div>
+              
+              {/* Specs */}
+              <div className="flex items-center gap-3 text-xs text-gray-600">
+                {hoveredListing.bedrooms != null && hoveredListing.bedrooms !== undefined && (
+                  <span>{hoveredListing.bedrooms} bed</span>
+                )}
+                {hoveredListing.bathrooms != null && hoveredListing.bathrooms !== undefined && (
+                  <span>{hoveredListing.bathrooms} bath</span>
+                )}
+                {hoveredListing.areaSqm && hoveredListing.areaSqm > 0 && (
+                  <span>{hoveredListing.areaSqm} m²</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+

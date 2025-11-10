@@ -1,0 +1,250 @@
+      // Revert on failure
+      setFavorites(prev => {
+        const next = new Set(prev)
+        next.add(propertyToRemove.id)
+        return next
+      })
+      setToast({ message: 'Failed to remove from saved listings', type: 'error' })
+    } finally {
+      setShowRemoveModal(false)
+      setPropertyToRemove(null)
+      
+      // End animation after a delay
+      setTimeout(() => {
+        setAnimatingBookmarks(prev => {
+          const next = new Set(prev)
+          next.delete(propertyToRemove.id)
+          return next
+        })
+      }, 600)
+      
+      // Auto-hide toast after 3 seconds
+      setTimeout(() => {
+        setToast(null)
+      }, 3000)
+    }
+  }
+
+  const cancelRemove = () => {
+    setShowRemoveModal(false)
+    setPropertyToRemove(null)
+  }
+
+  const getUniqueCities = () => {
+    return Array.from(new Set(listings.map(l => l.city).filter(Boolean))).sort()
+  }
+
+  const getUniqueAgencies = () => {
+    return Array.from(new Set(listings.map(l => l.agent?.agencyName).filter(Boolean))).sort()
+  }
+
+  const getActiveFiltersCount = () => {
+    return Object.values(filters).filter(value => {
+      if (Array.isArray(value)) return value.length > 0
+      return value.trim() !== ''
+    }).length
+  }
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredAndSortedListings.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedListings = filteredAndSortedListings.slice(startIndex, endIndex)
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
+  }
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
+
+  const goToPrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  return (
+    <div className="container space-y-12">
+      <header className="pt-18 text-primary">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.25em] text-muted">Marketplace</p>
+            <h1 className="mt-3 text-3xl font-semibold sm:text-4xl text-primary">Premium property listings</h1>
+            <p className="mt-3 max-w-2xl text-sm text-secondary">
+              Discover exceptional properties with detailed information, high-quality images, and comprehensive property details.
+            </p>
+          </div>
+          {isAuthenticated && user?.role === 'AGENT' && (
+            <Link href="/agent/upload" className="btn btn-primary whitespace-nowrap">
+              Publish your listing
+              <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+            </Link>
+          )}
+        </div>
+      </header>
+
+      <div className="glass relative space-y-6 border border-[color:var(--surface-border)] p-6">
+        {/* Search and Controls */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-primary">Search the marketplace</h2>
+            <p className="text-sm text-secondary">Find the perfect property with advanced filters and sorting.</p>
+          </div>
+          
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-72">
+              <MapPinIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <input
+                className="input input-with-icon"
+                placeholder="Search by address, city, or keyword"
+                value={filters.query}
+                onChange={(event) => updateFilter('query', event.target.value)}
+              />
+            </div>
+            
+            {/* Map View Toggle */}
+            <button
+              onClick={() => setViewMode(viewMode === 'map' ? 'grid' : 'map')}
+              className={`btn ${viewMode === 'map' ? 'btn-primary' : 'btn-outline'} flex items-center gap-2`}
+              title={viewMode === 'map' ? 'Show list view' : 'Show map view'}
+            >
+              <MapIcon className="h-4 w-4" />
+              Map
+            </button>
+            
+            {/* Filter Toggle */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`btn ${showFilters ? 'btn-primary' : 'btn-outline'} flex items-center gap-2`}
+            >
+              <FunnelIcon className="h-4 w-4" />
+              Filters
+              {getActiveFiltersCount() > 0 && (
+                <span className="ml-1 rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-primary">
+                  {getActiveFiltersCount()}
+                </span>
+              )}
+            </button>
+            
+            {/* Sort Dropdown */}
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="input pr-8 appearance-none"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+                <option value="area-low">Area: Small to Large</option>
+                <option value="area-high">Area: Large to Small</option>
+                <option value="bedrooms-low">Bedrooms: Few to Many</option>
+                <option value="bedrooms-high">Bedrooms: Many to Few</option>
+              </select>
+              <AdjustmentsHorizontalIcon className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* Advanced Filters */}
+        {showFilters && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="space-y-4 rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] p-4"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-primary">Advanced Filters</h3>
+              <button
+                onClick={clearFilters}
+                className="text-sm text-muted hover:text-primary"
+              >
+                Clear All
+              </button>
+            </div>
+            
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Price Range (Dropdown) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-primary">Price</label>
+                <div className="relative" ref={priceRef}>
+                  <button
+                    onClick={() => setShowPriceDropdown(!showPriceDropdown)}
+                    className={`w-full input text-left flex items-center justify-between ${(filters.minPrice || filters.maxPrice) ? 'text-[color:var(--accent-500)]' : 'text-gray-500'}`}
+                  >
+                    {(() => {
+                      const min = filters.minPrice?.trim()
+                      const max = filters.maxPrice?.trim()
+                      if (min && max) return `${min} - ${max}`
+                      if (min) return `Min ${min}`
+                      if (max) return `Max ${max}`
+                      return 'Select Price'
+                    })()}
+                    <svg className={`h-4 w-4 transition-transform ${showPriceDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {showPriceDropdown && (
+                    <div className="absolute top-full left-0 z-[9999] mt-2 w-72 rounded-xl border border-[color:var(--surface-border)] bg-[color:var(--surface-1)] shadow-lg">
+                      <div className="p-4 space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="number"
+                            placeholder="Min"
+                            value={filters.minPrice}
+                            onChange={(e) => updateFilter('minPrice', e.target.value)}
+                            className="input text-sm"
+                          />
+                          <input
+                            type="number"
+                            placeholder="Max"
+                            value={filters.maxPrice}
+                            onChange={(e) => updateFilter('maxPrice', e.target.value)}
+                            className="input text-sm"
+                          />
+                        </div>
+
+                        <div className="flex justify-between pt-2 border-t border-[color:var(--surface-border)]">
+                          <button
+                            onClick={() => {
+                              updateFilter('minPrice', '')
+                              updateFilter('maxPrice', '')
+                              setShowPriceDropdown(false)
+                            }}
+                            className="px-4 py-2 text-sm font-medium text-[color:var(--accent-500)] border border-[color:var(--accent-500)] rounded-lg hover:bg-[color:var(--accent-500)]/5"
+                          >
+                            Reset
+                          </button>
+                          <button
+                            onClick={() => setShowPriceDropdown(false)}
+                            className="px-4 py-2 text-sm font-medium text-white bg-[color:var(--accent-500)] rounded-lg hover:bg-[color:var(--accent-500)]/90"
+                          >
+                            Done
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Property Type */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-primary">Property Type</label>
+                <div className="relative" ref={propertyTypeRef}>
+                  <button
+                    onClick={() => setShowPropertyTypeDropdown(!showPropertyTypeDropdown)}
+                    className={`w-full input text-left flex items-center justify-between ${filters.propertyType.length > 0 ? 'text-[color:var(--accent-500)]' : 'text-gray-500'}`}
+                  >
+                    {filters.propertyType.length > 0 
+                      ? `${filters.propertyType.length} selected`
+                      : 'Select Property Type'
+                    }

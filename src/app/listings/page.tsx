@@ -10,17 +10,19 @@ import {
   AdjustmentsHorizontalIcon,
   BookmarkIcon,
   ShareIcon,
+  MapIcon,
 } from '@heroicons/react/24/outline'
 import { BookmarkIcon as BookmarkSolidIcon } from '@heroicons/react/24/solid'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, useRef } from 'react'
 
 import { formatPrice } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import RemoveSavedModal from '@/components/RemoveSavedModal'
+import ListingsMapView from '@/components/ListingsMapView'
 
 // Inline icons for bed, bath, and area to better reflect specs
 const BedIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -135,7 +137,9 @@ export default function ListingsIndexPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showRemoveModal, setShowRemoveModal] = useState(false)
   const [propertyToRemove, setPropertyToRemove] = useState<{ id: string; title: string } | null>(null)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid')
+  const router = useRouter()
+  const pathname = usePathname()
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(12)
   const [isLoading, setIsLoading] = useState(false)
@@ -208,7 +212,29 @@ export default function ListingsIndexPage() {
           }) as unknown as string[])
         : prev.bathrooms,
     }))
+
+    // Initialize view mode from URL (?view=map|grid|list)
+    const viewParam = searchParams.get('view')
+    if (viewParam === 'map' || viewParam === 'grid' || viewParam === 'list') {
+      setViewMode(viewParam)
+    }
   }, [searchParams])
+
+  // Helper to persist view mode in the URL without adding a history entry
+  const setViewModeAndUrl = (mode: 'grid' | 'list' | 'map') => {
+    setViewMode(mode)
+    try {
+      const params = new URLSearchParams(searchParams?.toString() || '')
+      if (mode === 'grid') {
+        // Keep URL clean: remove view when default grid
+        params.delete('view')
+      } else {
+        params.set('view', mode)
+      }
+      const qs = params.toString()
+      router.replace(qs ? `${pathname}?${qs}` : `${pathname}`, { scroll: false })
+    } catch {}
+  }
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -604,6 +630,16 @@ export default function ListingsIndexPage() {
                 onChange={(event) => updateFilter('query', event.target.value)}
               />
             </div>
+            
+            {/* Map View Toggle */}
+            <button
+              onClick={() => setViewModeAndUrl(viewMode === 'map' ? 'grid' : 'map')}
+              className={`btn ${viewMode === 'map' ? 'btn-primary' : 'btn-outline'} flex items-center gap-2`}
+              title={viewMode === 'map' ? 'Show list view' : 'Show map view'}
+            >
+              <MapIcon className="h-4 w-4" />
+              Map
+            </button>
             
             {/* Filter Toggle */}
             <button
@@ -1038,7 +1074,7 @@ export default function ListingsIndexPage() {
           {/* View Mode Toggle */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => setViewModeAndUrl('grid')}
               className={`p-2 rounded ${viewMode === 'grid' ? 'bg-[color:var(--accent-500)] text-white' : 'bg-gray-100 text-gray-600'}`}
             >
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
@@ -1046,7 +1082,7 @@ export default function ListingsIndexPage() {
               </svg>
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => setViewModeAndUrl('list')}
               className={`p-2 rounded ${viewMode === 'list' ? 'bg-[color:var(--accent-500)] text-white' : 'bg-gray-100 text-gray-600'}`}
             >
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
@@ -1267,7 +1303,7 @@ export default function ListingsIndexPage() {
               )
             })}
           </div>
-        ) : (
+        ) : viewMode === 'list' ? (
           /* List View */
           <div className="space-y-6">
             {paginatedListings.map((listing, index) => {
@@ -1486,10 +1522,18 @@ export default function ListingsIndexPage() {
               )
             })}
           </div>
+        ) : (
+          /* Map View */
+          <div className="w-full">
+            <ListingsMapView 
+              listings={filteredAndSortedListings}
+              height="h-[600px]"
+            />
+          </div>
         )}
 
         {/* Pagination Controls */}
-        {!isLoading && filteredAndSortedListings.length > itemsPerPage && (
+        {viewMode !== 'map' && !isLoading && filteredAndSortedListings.length > itemsPerPage && (
           <div className="flex items-center justify-center gap-2 pt-8">
             <button
               onClick={goToPrevPage}

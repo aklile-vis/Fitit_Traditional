@@ -1,0 +1,250 @@
+      if (query.trim()) {
+        const location = [listing.address, listing.city, listing.subCity].filter(Boolean).join(' ')
+        const haystack = `${listing.title} ${listing.description || ''} ${location}`.toLowerCase()
+        if (!haystack.includes(query.trim().toLowerCase())) return false
+      }
+      
+      // Price range
+      if (minPrice) {
+        const min = Number(minPrice)
+        if (listing.basePrice < min) return false
+      }
+      if (maxPrice) {
+        const max = Number(maxPrice)
+        if (listing.basePrice > max) return false
+      }
+      
+      // Bedrooms - check if any selected bedroom count matches
+      if (bedrooms.length > 0) {
+        const listingBeds = listing.bedrooms ?? 0
+        const bedMatch = bedrooms.some(bed => {
+          if (bed === 'Studio') return listingBeds === 0
+          if (bed === '8+') return listingBeds >= 8
+          return listingBeds === Number(bed)
+        })
+        if (!bedMatch) return false
+      }
+      
+      // Bathrooms - check if any selected bathroom count matches
+      if (bathrooms.length > 0) {
+        const listingBaths = listing.bathrooms ?? 0
+        const bathMatch = bathrooms.some(bath => {
+          if (bath === '6+') return listingBaths >= 6
+          return listingBaths === Number(bath)
+        })
+        if (!bathMatch) return false
+      }
+      
+      // Property type filter
+      if (propertyType.length > 0) {
+        const listingPropertyType = listing.propertyType
+        if (!listingPropertyType) return false // Skip if no property type set
+        
+        // Check if listing's property type matches any selected types
+        const matchesPropertyType = propertyType.some(selectedType => 
+          listingPropertyType.toLowerCase() === selectedType.toLowerCase()
+        )
+        if (!matchesPropertyType) return false
+      }
+      
+      
+      // City filter
+      if (city) {
+        if (listing.city?.toLowerCase() !== city.toLowerCase()) return false
+      }
+      
+      // Agency filter
+      if (agency) {
+        const listingAgencyName = listing.agent?.agencyName
+        if (!listingAgencyName) return false // Skip if no agency name set
+        
+        // Check if listing's agency name matches the selected agency
+        if (listingAgencyName.toLowerCase() !== agency.toLowerCase()) return false
+      }
+      
+      return true
+    })
+    
+    // Sort the filtered results
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.createdAt || b.updatedAt || '').getTime() - new Date(a.createdAt || a.updatedAt || '').getTime()
+        case 'oldest':
+          return new Date(a.createdAt || a.updatedAt || '').getTime() - new Date(b.createdAt || b.updatedAt || '').getTime()
+        case 'price-low':
+          return a.basePrice - b.basePrice
+        case 'price-high':
+          return b.basePrice - a.basePrice
+        case 'area-low':
+          return (a.areaSqm || 0) - (b.areaSqm || 0)
+        case 'area-high':
+          return (b.areaSqm || 0) - (a.areaSqm || 0)
+        case 'bedrooms-low':
+          return (a.bedrooms || 0) - (b.bedrooms || 0)
+        case 'bedrooms-high':
+          return (b.bedrooms || 0) - (a.bedrooms || 0)
+        default:
+          return 0
+      }
+    })
+    
+    return filtered
+  }, [listings, filters, sortBy])
+
+  // Helper functions
+  const updateFilter = (key: keyof Filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }
+
+  const toggleBedroomFilter = (bedroom: string) => {
+    setFilters(prev => ({
+      ...prev,
+      bedrooms: prev.bedrooms.includes(bedroom)
+        ? prev.bedrooms.filter(b => b !== bedroom)
+        : [...prev.bedrooms, bedroom]
+    }))
+  }
+
+  const toggleBathroomFilter = (bathroom: string) => {
+    setFilters(prev => ({
+      ...prev,
+      bathrooms: prev.bathrooms.includes(bathroom)
+        ? prev.bathrooms.filter(b => b !== bathroom)
+        : [...prev.bathrooms, bathroom]
+    }))
+  }
+
+  // Clear only bed and bath selections (used by dropdown Reset)
+  const clearBedBathFilters = () => {
+    setFilters(prev => ({
+      ...prev,
+      bedrooms: [],
+      bathrooms: []
+    }))
+  }
+
+  const togglePropertyTypeFilter = (propertyType: string) => {
+    setFilters(prev => ({
+      ...prev,
+      propertyType: prev.propertyType.includes(propertyType)
+        ? prev.propertyType.filter(p => p !== propertyType)
+        : [...prev.propertyType, propertyType]
+    }))
+  }
+
+  const clearPropertyTypeFilters = () => {
+    setFilters(prev => ({
+      ...prev,
+      propertyType: []
+    }))
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      query: '',
+      minPrice: '',
+      maxPrice: '',
+      bedrooms: [],
+      bathrooms: [],
+      propertyType: [],
+      city: '',
+      agency: ''
+    })
+  }
+
+  // Load saved listings for authenticated users
+  useEffect(() => {
+    let cancelled = false
+    const loadSaved = async () => {
+      if (!isAuthenticated) { setFavorites(new Set()); return }
+      try {
+        const r = await fetch('/api/saved', { cache: 'no-store' })
+        if (!r.ok) return
+        const rows = await r.json()
+        if (cancelled) return
+        const ids = Array.isArray(rows) ? rows.map((l: any) => String(l.id)) : []
+        setFavorites(new Set(ids))
+      } catch {}
+    }
+    void loadSaved()
+    return () => { cancelled = true }
+  }, [isAuthenticated])
+
+  const toggleFavorite = async (listingId: string) => {
+    const isFav = favorites.has(listingId)
+    
+    if (isFav) {
+      // Show confirmation modal for removal
+      const listing = listings.find(l => l.id === listingId)
+      if (listing) {
+        setPropertyToRemove({ id: listingId, title: listing.title })
+        setShowRemoveModal(true)
+        return
+      }
+    }
+    
+    // Start animation for adding
+    setAnimatingBookmarks(prev => new Set(prev).add(listingId))
+    
+    // Optimistic update
+    setFavorites(prev => {
+      const next = new Set(prev)
+      if (isFav) next.delete(listingId); else next.add(listingId)
+      return next
+    })
+    
+    try {
+      if (isFav) {
+        await fetch(`/api/saved/${listingId}`, { method: 'DELETE' })
+        setToast({ message: 'Removed from saved listings', type: 'success' })
+      } else {
+        await fetch('/api/saved', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ listingId })
+        })
+        setToast({ message: 'Added to saved listings', type: 'success' })
+      }
+    } catch {
+      // Revert on failure
+      setFavorites(prev => {
+        const next = new Set(prev)
+        if (isFav) next.add(listingId); else next.delete(listingId)
+        return next
+      })
+      setToast({ message: 'Failed to update saved listings', type: 'error' })
+    } finally {
+      // End animation after a delay
+      setTimeout(() => {
+        setAnimatingBookmarks(prev => {
+          const next = new Set(prev)
+          next.delete(listingId)
+          return next
+        })
+      }, 600)
+      
+      // Auto-hide toast after 3 seconds
+      setTimeout(() => {
+        setToast(null)
+      }, 3000)
+    }
+  }
+
+  const confirmRemove = async () => {
+    if (!propertyToRemove) return
+    
+    // Start animation
+    setAnimatingBookmarks(prev => new Set(prev).add(propertyToRemove.id))
+    
+    // Optimistic update
+    setFavorites(prev => {
+      const next = new Set(prev)
+      next.delete(propertyToRemove.id)
+      return next
+    })
+    
+    try {
+      await fetch(`/api/saved/${propertyToRemove.id}`, { method: 'DELETE' })
+      setToast({ message: 'Removed from saved listings', type: 'success' })
+    } catch {
